@@ -1,0 +1,593 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		009BEE412BAD312A007893A2 /* MixBotApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE402BAD312A007893A2 /* MixBotApp.swift */; };
+		009BEE432BAD312A007893A2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE422BAD312A007893A2 /* ContentView.swift */; };
+		009BEE452BAD312B007893A2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 009BEE442BAD312B007893A2 /* Assets.xcassets */; };
+		009BEE482BAD312B007893A2 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 009BEE472BAD312B007893A2 /* Preview Assets.xcassets */; };
+		009BEE522BAD312B007893A2 /* MixBotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE512BAD312B007893A2 /* MixBotTests.swift */; };
+		009BEE5C2BAD312B007893A2 /* MixBotUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE5B2BAD312B007893A2 /* MixBotUITests.swift */; };
+		009BEE5E2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE5D2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		009BEE4E2BAD312B007893A2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 009BEE352BAD312A007893A2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 009BEE3C2BAD312A007893A2;
+			remoteInfo = MixBot;
+		};
+		009BEE582BAD312B007893A2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 009BEE352BAD312A007893A2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 009BEE3C2BAD312A007893A2;
+			remoteInfo = MixBot;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		009BEE3D2BAD312A007893A2 /* MixBot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MixBot.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		009BEE402BAD312A007893A2 /* MixBotApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixBotApp.swift; sourceTree = "<group>"; };
+		009BEE422BAD312A007893A2 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		009BEE442BAD312B007893A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		009BEE472BAD312B007893A2 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		009BEE4D2BAD312B007893A2 /* MixBotTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MixBotTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		009BEE512BAD312B007893A2 /* MixBotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixBotTests.swift; sourceTree = "<group>"; };
+		009BEE572BAD312B007893A2 /* MixBotUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MixBotUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		009BEE5B2BAD312B007893A2 /* MixBotUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixBotUITests.swift; sourceTree = "<group>"; };
+		009BEE5D2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixBotUITestsLaunchTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		009BEE3A2BAD312A007893A2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		009BEE4A2BAD312B007893A2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		009BEE542BAD312B007893A2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		009BEE342BAD312A007893A2 = {
+			isa = PBXGroup;
+			children = (
+				009BEE3F2BAD312A007893A2 /* MixBot */,
+				009BEE502BAD312B007893A2 /* MixBotTests */,
+				009BEE5A2BAD312B007893A2 /* MixBotUITests */,
+				009BEE3E2BAD312A007893A2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		009BEE3E2BAD312A007893A2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				009BEE3D2BAD312A007893A2 /* MixBot.app */,
+				009BEE4D2BAD312B007893A2 /* MixBotTests.xctest */,
+				009BEE572BAD312B007893A2 /* MixBotUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		009BEE3F2BAD312A007893A2 /* MixBot */ = {
+			isa = PBXGroup;
+			children = (
+				009BEE402BAD312A007893A2 /* MixBotApp.swift */,
+				009BEE422BAD312A007893A2 /* ContentView.swift */,
+				009BEE442BAD312B007893A2 /* Assets.xcassets */,
+				009BEE462BAD312B007893A2 /* Preview Content */,
+			);
+			path = MixBot;
+			sourceTree = "<group>";
+		};
+		009BEE462BAD312B007893A2 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				009BEE472BAD312B007893A2 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		009BEE502BAD312B007893A2 /* MixBotTests */ = {
+			isa = PBXGroup;
+			children = (
+				009BEE512BAD312B007893A2 /* MixBotTests.swift */,
+			);
+			path = MixBotTests;
+			sourceTree = "<group>";
+		};
+		009BEE5A2BAD312B007893A2 /* MixBotUITests */ = {
+			isa = PBXGroup;
+			children = (
+				009BEE5B2BAD312B007893A2 /* MixBotUITests.swift */,
+				009BEE5D2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift */,
+			);
+			path = MixBotUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		009BEE3C2BAD312A007893A2 /* MixBot */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 009BEE612BAD312B007893A2 /* Build configuration list for PBXNativeTarget "MixBot" */;
+			buildPhases = (
+				009BEE392BAD312A007893A2 /* Sources */,
+				009BEE3A2BAD312A007893A2 /* Frameworks */,
+				009BEE3B2BAD312A007893A2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MixBot;
+			productName = MixBot;
+			productReference = 009BEE3D2BAD312A007893A2 /* MixBot.app */;
+			productType = "com.apple.product-type.application";
+		};
+		009BEE4C2BAD312B007893A2 /* MixBotTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 009BEE642BAD312B007893A2 /* Build configuration list for PBXNativeTarget "MixBotTests" */;
+			buildPhases = (
+				009BEE492BAD312B007893A2 /* Sources */,
+				009BEE4A2BAD312B007893A2 /* Frameworks */,
+				009BEE4B2BAD312B007893A2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				009BEE4F2BAD312B007893A2 /* PBXTargetDependency */,
+			);
+			name = MixBotTests;
+			productName = MixBotTests;
+			productReference = 009BEE4D2BAD312B007893A2 /* MixBotTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		009BEE562BAD312B007893A2 /* MixBotUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 009BEE672BAD312B007893A2 /* Build configuration list for PBXNativeTarget "MixBotUITests" */;
+			buildPhases = (
+				009BEE532BAD312B007893A2 /* Sources */,
+				009BEE542BAD312B007893A2 /* Frameworks */,
+				009BEE552BAD312B007893A2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				009BEE592BAD312B007893A2 /* PBXTargetDependency */,
+			);
+			name = MixBotUITests;
+			productName = MixBotUITests;
+			productReference = 009BEE572BAD312B007893A2 /* MixBotUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		009BEE352BAD312A007893A2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1530;
+				LastUpgradeCheck = 1530;
+				TargetAttributes = {
+					009BEE3C2BAD312A007893A2 = {
+						CreatedOnToolsVersion = 15.3;
+					};
+					009BEE4C2BAD312B007893A2 = {
+						CreatedOnToolsVersion = 15.3;
+						TestTargetID = 009BEE3C2BAD312A007893A2;
+					};
+					009BEE562BAD312B007893A2 = {
+						CreatedOnToolsVersion = 15.3;
+						TestTargetID = 009BEE3C2BAD312A007893A2;
+					};
+				};
+			};
+			buildConfigurationList = 009BEE382BAD312A007893A2 /* Build configuration list for PBXProject "MixBot" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 009BEE342BAD312A007893A2;
+			productRefGroup = 009BEE3E2BAD312A007893A2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				009BEE3C2BAD312A007893A2 /* MixBot */,
+				009BEE4C2BAD312B007893A2 /* MixBotTests */,
+				009BEE562BAD312B007893A2 /* MixBotUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		009BEE3B2BAD312A007893A2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				009BEE482BAD312B007893A2 /* Preview Assets.xcassets in Resources */,
+				009BEE452BAD312B007893A2 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		009BEE4B2BAD312B007893A2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		009BEE552BAD312B007893A2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		009BEE392BAD312A007893A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				009BEE432BAD312A007893A2 /* ContentView.swift in Sources */,
+				009BEE412BAD312A007893A2 /* MixBotApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		009BEE492BAD312B007893A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				009BEE522BAD312B007893A2 /* MixBotTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		009BEE532BAD312B007893A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				009BEE5C2BAD312B007893A2 /* MixBotUITests.swift in Sources */,
+				009BEE5E2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		009BEE4F2BAD312B007893A2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 009BEE3C2BAD312A007893A2 /* MixBot */;
+			targetProxy = 009BEE4E2BAD312B007893A2 /* PBXContainerItemProxy */;
+		};
+		009BEE592BAD312B007893A2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 009BEE3C2BAD312A007893A2 /* MixBot */;
+			targetProxy = 009BEE582BAD312B007893A2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		009BEE5F2BAD312B007893A2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		009BEE602BAD312B007893A2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		009BEE622BAD312B007893A2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"MixBot/Preview Content\"";
+				DEVELOPMENT_TEAM = E92H7P5GDX;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MovicRec.MixBot;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		009BEE632BAD312B007893A2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"MixBot/Preview Content\"";
+				DEVELOPMENT_TEAM = E92H7P5GDX;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MovicRec.MixBot;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		009BEE652BAD312B007893A2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = E92H7P5GDX;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MovicRec.MixBotTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MixBot.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MixBot";
+			};
+			name = Debug;
+		};
+		009BEE662BAD312B007893A2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = E92H7P5GDX;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MovicRec.MixBotTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MixBot.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MixBot";
+			};
+			name = Release;
+		};
+		009BEE682BAD312B007893A2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = E92H7P5GDX;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MovicRec.MixBotUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = MixBot;
+			};
+			name = Debug;
+		};
+		009BEE692BAD312B007893A2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = E92H7P5GDX;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.MovicRec.MixBotUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = MixBot;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		009BEE382BAD312A007893A2 /* Build configuration list for PBXProject "MixBot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				009BEE5F2BAD312B007893A2 /* Debug */,
+				009BEE602BAD312B007893A2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		009BEE612BAD312B007893A2 /* Build configuration list for PBXNativeTarget "MixBot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				009BEE622BAD312B007893A2 /* Debug */,
+				009BEE632BAD312B007893A2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		009BEE642BAD312B007893A2 /* Build configuration list for PBXNativeTarget "MixBotTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				009BEE652BAD312B007893A2 /* Debug */,
+				009BEE662BAD312B007893A2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		009BEE672BAD312B007893A2 /* Build configuration list for PBXNativeTarget "MixBotUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				009BEE682BAD312B007893A2 /* Debug */,
+				009BEE692BAD312B007893A2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 009BEE352BAD312A007893A2 /* Project object */;
+}
