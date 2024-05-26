@@ -7,9 +7,15 @@
 
 import Foundation
 
-struct Ingredient: Identifiable {
+struct Ingredient: Identifiable, Codable {
     var id = UUID()
     var name: String
     var stationId: Int
     var percent: Double
+    
+    enum CodingKeys: CodingKey {     
+        case name
+        case stationId
+        case percent
+    }
 }

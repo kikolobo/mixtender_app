@@ -1,14 +1,3 @@
-//
-//  DrinkDetailView.swift
-//  MixBot
-//
-//  Created by Francisco Lobo on 21/03/24.
-//
-
-import SwiftUI
-
-import SwiftUI
-
 import SwiftUI
 
 struct DividerButton: View {
@@ -24,7 +13,6 @@ struct DividerButton: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderedProminent)
-            
             .listRowInsets(EdgeInsets()).padding()
         }
     }
@@ -34,6 +22,7 @@ struct DrinkDetailView: View {
     @State var drink: Drink
     @State private var weights: [Double]
     @State private var showChecklist = false // For navigation trigger
+    @EnvironmentObject var remoteEngine: RemoteEngine
     
     init(drink: Drink) {
         self.drink = drink
@@ -59,9 +48,19 @@ struct DrinkDetailView: View {
                         Text("\(Int(self.weights[index]))%")
                     }
                 }
-                DividerButton(title: "SERVE", action: {
-                    self.showChecklist = true // Trigger navigation
-                })
+                if (remoteEngine.bluetoothEngine.isConnected == true) {
+                    if (remoteEngine.bluetoothEngine.cupStatus == true) {
+                        DividerButton(title: "SERVE MY DRINK!", action: {
+                            self.showChecklist = false // Trigger navigation
+                        })
+                    } else {
+                        Text("Please place your cup").frame(maxWidth: .infinity, alignment: .center)
+                            .padding().font(.headline)
+                    }
+                } else {
+                    Text("Robot not connected").frame(maxWidth: .infinity, alignment: .center)
+                        .padding().font(.headline)
+                }
             }
         }.onChange(of: self.weights) {
             for (idx, weight) in weights.enumerated() {
@@ -86,26 +85,67 @@ struct DrinkDetailView: View {
         let otherIndexes = weights.indices.filter { $0 != excludedIndex }
         let sumOfOthers = otherIndexes.reduce(0) { $0 + weights[$1] }
 
-        for i in otherIndexes {
-            if sumOfOthers > 0 {
-                // Proportionally adjust other sliders to account for the change in the current slider.
+        // Redistribute the delta among other sliders proportionally
+        if sumOfOthers > 0 {
+            for i in otherIndexes {
                 weights[i] = max(0, weights[i] - (weights[i] / sumOfOthers) * delta)
-            } else {
-                // If sumOfOthers is 0 or negative, it means the current slider is set to 100 or more,
-                // set other sliders to 0.
-                weights[i] = 0
+            }
+        } else {
+            for i in otherIndexes {
+                weights[i] = max(0, weights[i] - delta / Double(weights.count - 1))
             }
         }
 
-        // Ensure the total doesn't exceed 100 due to rounding errors.
+        // Ensure the current slider stays within bounds
+        weights[excludedIndex] = min(max(weights[excludedIndex], 0), 100)
+
+        // Normalize the weights to ensure they sum up to 100
         let total = weights.reduce(0, +)
         if total != 100 {
-            weights[excludedIndex] += 100 - total
+            let correction = (100 - total) / Double(weights.count - 1)
+            for i in otherIndexes {
+                weights[i] = min(max(weights[i] + correction, 0), 100)
+            }
         }
+
+        // Round weights to nearest integer
+        weights = weights.map { round($0) }
     }
 }
 
+struct CustomSlider: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let accentColor: Color
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 6)
+                
+                Capsule()
+                    .fill(accentColor)
+                    .frame(width: CGFloat(self.value / (self.range.upperBound - self.range.lowerBound)) * geometry.size.width, height: 6)
+                
+                Circle()
+                    .fill(accentColor)
+                    .frame(width: 20, height: 20)
+                    .offset(x: CGFloat(self.value / (self.range.upperBound - self.range.lowerBound)) * geometry.size.width - 10)
+                    .gesture(
+                        DragGesture()
+                            .onChanged { gesture in
+                                let newValue = Double(gesture.location.x / geometry.size.width) * (self.range.upperBound - self.range.lowerBound)
+                                self.value = min(max(self.range.lowerBound, newValue), self.range.upperBound)
+                            }
+                    )
+            }
+        }
+        .frame(height: 20)
+    }
+}
 
 #Preview {
-    DrinkDetailView(drink: Drink(name: "vermont", totalQty: 100, ingredients: [Ingredient(name: "Tequila", stationId: 1, percent: 100), Ingredient(name: "Gim", stationId: 1, percent: 100), Ingredient(name: "Mezcal", stationId: 1, percent: 100)]))
+    DrinkDetailView(drink: Drink(name: "vermont", description: "", totalQty: 300, ingredients: [Ingredient(name: "Tequila", stationId: 1, percent: 33), Ingredient(name: "Gim", stationId: 1, percent: 33), Ingredient(name: "Mezcal", stationId: 1, percent: 33)])).environmentObject(RemoteEngine(targetPeripheralUUIDString:  "4ac8a682-9736-4e5d-932b-e9b31405049c"))
 }

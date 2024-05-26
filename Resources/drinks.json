@@ -1,0 +1,37 @@
+[
+    {
+        "name": "Gin and Tonic",
+        "description": "A refreshing classic.",
+        "totalQty": 300,
+        "ingredients": [
+            {"name": "Gin", "stationId": 1, "percent": 30.0},
+            {"name": "Tonic Water", "stationId": 2, "percent": 20.0}
+        ]
+    },
+    {
+        "name": "Charro Negro",
+        "description": "A tequila-based cocktail.",
+        "totalQty": 300,
+        "ingredients": [
+            {"name": "Tequila", "stationId": 1, "percent": 10},
+            {"name": "Coca Light", "stationId": 7, "percent": 80}
+        ]
+    },
+    {
+        "name": "Tequila Soda",
+        "description": "Simple and straightforward.",
+        "totalQty": 300,
+        "ingredients": [
+            {"name": "Tequila", "stationId": 1, "percent": 10},
+            {"name": "Mineral", "stationId": 8, "percent": 80}
+        ]
+    },
+    {
+        "name": "Tequila Short",
+        "description": "Simple and straightforward.",
+        "totalQty": 50,
+        "ingredients": [
+            {"name": "Tequila", "stationId": 1, "percent": 100}
+        ]
+    }
+]

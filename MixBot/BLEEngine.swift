@@ -20,6 +20,7 @@ struct ProcessStatus: Equatable {
 class BluetoothEngine: NSObject, ObservableObject, CBCentralManagerDelegate {
     @Published var comStatus: String = "Disconnected"
     @Published var robotStatus: String = ""
+    @Published var cupStatus: Bool = false
     @Published var robotProcess: ProcessStatus?
     @Published var rx: String = ""
     @Published var isConnected: Bool = false
@@ -165,7 +166,11 @@ extension BluetoothEngine: CBPeripheralDelegate {
                 if let process = interpretRobotStatus(message) {
                     robotProcess = process
                 } else if let status = getStatusMessage(message) {
-                    robotStatus = status
+                    if (status.0 == 0) {
+                        robotStatus = status.1
+                    } else if (status.0 == 1) {
+                        cupStatus = (status.1 == "1") ? true : false
+                    }
                 }
                 
             }
@@ -291,7 +296,7 @@ func interpretRobotStatus(_ input: String) -> ProcessStatus? {
     return result
 }
 
-func getStatusMessage(_ input: String) -> String? {
+func getStatusMessage(_ input: String) -> (Int, String)? {
     guard input.first == "$" else {
           return nil
       }
@@ -302,7 +307,8 @@ func getStatusMessage(_ input: String) -> String? {
           return nil
       }
       
+      let messageType = Int(components[0])
       let cleanedStatus = String(components[1])
 
-      return cleanedStatus
+    return (messageType, cleanedStatus) as? (Int, String)
 }

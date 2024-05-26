@@ -3,67 +3,70 @@ import SwiftUI
 struct DrinkMenuView: View {
     @EnvironmentObject var remoteEngine: RemoteEngine
     
-    let drinks: [Drink] = [
-        Drink(name: "Gin and Tonic", 
-              description: "A refreshing classic.",
-              totalQty: 300,
-              ingredients: [
-            Ingredient(name: "Gin", stationId: 1, percent: 30.0),
-            Ingredient(name: "Tonic Water", stationId: 2, percent: 20.0)
-        ]),
-        Drink(name: "Charro Negro", 
-              description: "A tequila-based cocktail.",
-              totalQty: 300,
-              ingredients: [
-            Ingredient(name: "Tequila", stationId: 1, percent: 10)
-        ]),
-        Drink(name: "Tequila Soda", 
-              description: "Simple and straightforward.",
-              totalQty: 300,
-              ingredients: [
-            Ingredient(name: "Tequila", stationId: 1, percent: 10)
-        ])
-    ]
-
+    @State private var drinks: [Drink] = []
+    
     var body: some View {
-           NavigationStack {
-               List {
-                   // Drink items
-                   ForEach(drinks) { drink in
-                       if remoteEngine.bluetoothEngine.isConnected {
-                           
-                                              NavigationLink(destination: DrinkDetailView(drink: drink)) {
-                                                  Text(drink.name)
-                                              }
-                                          } else {
-                                              Text(drink.name)
-                                                  .opacity(0.5) // Dim the text to indicate it's disabled
-                                          }
-                   }
-                   
-                   // Robot Status at the bottom
-                   Section {
-                       Text(remoteEngine.bluetoothEngine.comStatus)
-                           .frame(maxWidth: .infinity, alignment: .center)
-                           .padding()
-                           .font(.callout)
-                           .foregroundColor(.secondary)
-                       Text(remoteEngine.bluetoothEngine.robotStatus)
-                           .frame(maxWidth: .infinity, alignment: .center)
-                           .padding()
-                           .font(.callout)
-                           .foregroundColor(.secondary)
-                   }.listRowBackground(Color.clear) // Removes the default styling and background of list rows
-                       .listRowInsets(EdgeInsets())
-               }
-               
-               .navigationTitle("Choose a Drink")
-           }.onAppear() {
-               remoteEngine.bluetoothEngine.connect()
-           }
-       }
+        NavigationStack {
+            VStack {
+                List {
+                    // Drink items
+                    ForEach(drinks) { drink in
+//                        if remoteEngine.bluetoothEngine.isConnected == false {
+//                            Text(drink.name)
+//                                .opacity(0.5) // Dim the text to indicate it's disabled
+//                        } else {
+                            NavigationLink(destination: DrinkDetailView(drink: drink)) {
+                                Text(drink.name)
+//                            }
+                        }
+                    }
+                }
+                .listStyle(PlainListStyle())
+                .background(Color.white)
+                
+                // Robot Status at the bottom
+                VStack(spacing: 8) {
+                    Text(remoteEngine.bluetoothEngine.comStatus)
+                        .padding()
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                    Text(remoteEngine.bluetoothEngine.robotStatus)
+                        .padding()
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .background(Color.white)
+            }
+            .navigationTitle("Choose a Drink")
+            .background(Color.white) // Set the background of the entire view to white
+        }
+        .onAppear {
+            remoteEngine.bluetoothEngine.connect()
+            fetchDrinks()
+        }
+    }
+    
+    private func fetchDrinks() {
+        downloadAndCacheMenu { downloadedDrinks in
+            if let downloadedDrinks = downloadedDrinks {
+                self.drinks = downloadedDrinks
+                print("[DrinkMenu] Using Live ONLINE Menu")
+            } else {
+                
+                if let cachedDrinks = getDrinksCachedFile() {
+                    self.drinks = cachedDrinks
+                    print("[DrinkMenu] Using Local/Cached Menu")
+                } else {
+                    self.drinks = loadLocalDrinks()
+                    print("[DrinkMenu] Using Local/Bundled Menu")
+                }
+            }
+        }
+    }
 }
 
 #Preview {
     DrinkMenuView()
+        .environmentObject(RemoteEngine(targetPeripheralUUIDString:  "4ac8a682-9736-4e5d-932b-e9b31405049c"))
 }

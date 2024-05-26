@@ -8,10 +8,17 @@
 import Foundation
 
 
-struct Drink: Identifiable {
+struct Drink: Identifiable, Codable {
     var id = UUID()
     var name: String
-    var description: String?
-    var totalQty: UInt
+    var description: String
+    var totalQty: Int
     var ingredients: [Ingredient]
+    
+    enum CodingKeys: CodingKey {        
+        case name
+        case description
+        case totalQty
+        case ingredients
+    }
 }
