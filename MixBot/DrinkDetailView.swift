@@ -51,7 +51,7 @@ struct DrinkDetailView: View {
                 if (remoteEngine.bluetoothEngine.isConnected == true) {
                     if (remoteEngine.bluetoothEngine.cupStatus == true) {
                         DividerButton(title: "SERVE MY DRINK!", action: {
-                            self.showChecklist = false // Trigger navigation
+                            self.showChecklist = true // Trigger navigation
                         })
                     } else {
                         Text("Please place your cup").frame(maxWidth: .infinity, alignment: .center)

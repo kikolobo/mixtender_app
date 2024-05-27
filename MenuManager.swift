@@ -26,7 +26,8 @@ func downloadAndCacheMenu(completion: @escaping ([Drink]?) -> Void) {
         return
     }
     
-    let task = URLSession.shared.dataTask(with: url) { data, response, error in
+    let urlRequest = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 60.0)
+    let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
         if let error = error {
             print("Failed to download data: \(error)")
             completion(nil)
@@ -45,7 +46,7 @@ func downloadAndCacheMenu(completion: @escaping ([Drink]?) -> Void) {
         // Decode the JSON data
         do {
             let drinks = try JSONDecoder().decode([Drink].self, from: data)
-            completion(drinks)
+            completion(drinks)                        
         } catch {
             print("Error decoding JSON: \(error)")
             completion(nil)

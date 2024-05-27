@@ -22,7 +22,7 @@ struct DrinkMenuView: View {
                     }
                 }
                 .listStyle(PlainListStyle())
-                .background(Color.white)
+                
                 
                 // Robot Status at the bottom
                 VStack(spacing: 8) {
@@ -36,10 +36,9 @@ struct DrinkMenuView: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
-                .background(Color.white)
+                
             }
-            .navigationTitle("Choose a Drink")
-            .background(Color.white) // Set the background of the entire view to white
+            .navigationTitle("Choose a Drink")             
         }
         .onAppear {
             remoteEngine.bluetoothEngine.connect()
@@ -51,7 +50,7 @@ struct DrinkMenuView: View {
         downloadAndCacheMenu { downloadedDrinks in
             if let downloadedDrinks = downloadedDrinks {
                 self.drinks = downloadedDrinks
-                print("[DrinkMenu] Using Live ONLINE Menu")
+                print("[DrinkMenu] Using Live ONLINE Menu:")                
             } else {
                 
                 if let cachedDrinks = getDrinksCachedFile() {
