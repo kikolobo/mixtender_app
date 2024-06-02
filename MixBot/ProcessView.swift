@@ -96,7 +96,7 @@ struct ProcessView: View {
             currentStep = remoteEngine.bluetoothEngine.robotProcess?.step ?? 0
             
         }.onChange(of: remoteEngine.bluetoothEngine.robotProcess?.status) {
-            let step = currentStep
+            let step = currentStep 
                         
             if (remoteEngine.bluetoothEngine.robotProcess?.status == .Complete) {
                 self.items[step].completed = true

@@ -22,7 +22,7 @@
 		009BEE5C2BAD312B007893A2 /* MixBotUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE5B2BAD312B007893A2 /* MixBotUITests.swift */; };
 		009BEE5E2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE5D2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift */; };
 		009BEE6D2BAD3312007893A2 /* DrinkDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE6C2BAD3312007893A2 /* DrinkDetailView.swift */; };
-		00E585252BDAC80500B5F238 /* DrinkServeStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E585242BDAC80500B5F238 /* DrinkServeStatus.swift */; };
+		00E585252BDAC80500B5F238 /* DrinkJobStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E585242BDAC80500B5F238 /* DrinkJobStatus.swift */; };
 		00E585272BDAC85B00B5F238 /* IngredientServeStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E585262BDAC85B00B5F238 /* IngredientServeStatus.swift */; };
 /* End PBXBuildFile section */
 
@@ -62,7 +62,7 @@
 		009BEE5B2BAD312B007893A2 /* MixBotUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixBotUITests.swift; sourceTree = "<group>"; };
 		009BEE5D2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixBotUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		009BEE6C2BAD3312007893A2 /* DrinkDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkDetailView.swift; sourceTree = "<group>"; };
-		00E585242BDAC80500B5F238 /* DrinkServeStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkServeStatus.swift; sourceTree = "<group>"; };
+		00E585242BDAC80500B5F238 /* DrinkJobStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkJobStatus.swift; sourceTree = "<group>"; };
 		00E585262BDAC85B00B5F238 /* IngredientServeStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IngredientServeStatus.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -97,7 +97,7 @@
 				008434B72BB026FF00C90D77 /* Ingredient.swift */,
 				00E585262BDAC85B00B5F238 /* IngredientServeStatus.swift */,
 				008434B52BB026ED00C90D77 /* Drink.swift */,
-				00E585242BDAC80500B5F238 /* DrinkServeStatus.swift */,
+				00E585242BDAC80500B5F238 /* DrinkJobStatus.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -307,7 +307,7 @@
 				009BEE432BAD312A007893A2 /* DrinkMenuView.swift in Sources */,
 				000024212BD49F02004B3257 /* RemoteEngine.swift in Sources */,
 				009BEE6D2BAD3312007893A2 /* DrinkDetailView.swift in Sources */,
-				00E585252BDAC80500B5F238 /* DrinkServeStatus.swift in Sources */,
+				00E585252BDAC80500B5F238 /* DrinkJobStatus.swift in Sources */,
 				008434B82BB026FF00C90D77 /* Ingredient.swift in Sources */,
 				008434BB2BB027C600C90D77 /* BLEEngine.swift in Sources */,
 				00541C012BFC531E001A9313 /* MenuManager.swift in Sources */,

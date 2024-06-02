@@ -1,6 +1,6 @@
 [
     {
-        "name": "Gin and Tonic",
+        "name": "Gin & Tonic",
         "description": "A refreshing classic.",
         "totalQty": 300,
         "ingredients": [
@@ -18,7 +18,7 @@
         ]
     },
     {
-        "name": "Tequila Soda",
+        "name": "Tequila & Soda",
         "description": "Simple and straightforward.",
         "totalQty": 300,
         "ingredients": [
