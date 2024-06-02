@@ -29,9 +29,7 @@ struct ListItem: Identifiable {
 struct ProcessView: View {
     let drink: Drink
     @State private var items: [ListItem] = []
-    @State private var imageName = "circle"
     @State private var isProcessing = true
-    @State private var currentStep = 0
     
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var remoteEngine: RemoteEngine
@@ -40,7 +38,7 @@ struct ProcessView: View {
     
     init(drink: Drink) {
         self.drink = drink
-        self._items = State(initialValue: drink.ingredients.map { ListItem(ingredient: $0, completed: false, working: false, weight: 0) })
+        self._items = State(initialValue: drink.ingredients.map { ListItem(ingredient: $0, completed: false, working: false, weight: 0.0) })
     }
 
     var body: some View {
@@ -68,7 +66,7 @@ struct ProcessView: View {
                         }
                 }
             }
-            Text(remoteEngine.bluetoothEngine.robotStatus)
+            Text(remoteEngine.robotStatus.text ?? "--")
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
                 .padding()
@@ -91,34 +89,26 @@ struct ProcessView: View {
             .buttonStyle(isProcessing ? AnyButtonStyle(RedButtonStyle()) : AnyButtonStyle(GreenButtonStyle()))
            
         }.onAppear() {
-            remoteEngine.performServing(drink: self.drink)
-        }.onChange(of: remoteEngine.bluetoothEngine.robotProcess?.step) {
-            currentStep = remoteEngine.bluetoothEngine.robotProcess?.step ?? 0
-            
-        }.onChange(of: remoteEngine.bluetoothEngine.robotProcess?.status) {
-            let step = currentStep 
-                        
-            if (remoteEngine.bluetoothEngine.robotProcess?.status == .Complete) {
-                self.items[step].completed = true
-                self.items[step].working = false
-                print("------------------>. Completed! \(step)")
-                if (step == self.items.count-1) {
-                    isProcessing = false
+            remoteEngine.beginDispensing(drink: self.drink)
+        }.onChange(of: remoteEngine.jobProgress) {
+            var completedCount = 0
+            for newItem in remoteEngine.jobProgress {
+                let step = newItem.step
+                if (newItem.status == .Complete) {
+                    self.items[step].completed = true
+                    self.items[step].working = false
+                    completedCount = completedCount + 1
+                } else if (newItem.status == .Processing) {
+                    self.items[step].working = true
+                    self.items[step].completed = false
                 }
+                                
+                self.items[step].weight = newItem.weight
             }
             
-            if (remoteEngine.bluetoothEngine.robotProcess?.status == .Processing) {
-                self.items[step].working = true
-                self.items[step].completed = false
-                print("------------------>. Processing! \(step)")
+            if (completedCount >= self.items.count) {
+                self.isProcessing = false
             }
-        }.onChange(of: remoteEngine.bluetoothEngine.robotProcess?.weight) {
-            let step = currentStep
-//                if (self.items[step].completed == false && self.items[step].working == true) {
-            if ( self.items[step].weight < remoteEngine.bluetoothEngine.robotProcess?.weight ?? 0) {
-                self.items[step].weight = remoteEngine.bluetoothEngine.robotProcess?.weight ?? 0
-            }
-//                }
         }
     }
 }

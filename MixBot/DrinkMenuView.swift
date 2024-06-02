@@ -23,7 +23,7 @@ struct DrinkMenuView: View {
                     Text(remoteEngine.bluetoothEngine.comStatus)
                         .padding()
                         .font(.callout)
-                    Text(remoteEngine.bluetoothEngine.robotStatus)
+                    Text(remoteEngine.robotStatus.text ?? "--")
                         .padding()
                         .font(.callout)
                 }

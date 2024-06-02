@@ -49,7 +49,7 @@ struct DrinkDetailView: View {
                     }
                 }
                 if (remoteEngine.bluetoothEngine.isConnected == true) {
-                    if (remoteEngine.bluetoothEngine.cupStatus == true) {
+                    if (remoteEngine.robotStatus.isCupReady == true) {
                         DividerButton(title: "SERVE MY DRINK!", action: {
                             self.showChecklist = true // Trigger navigation
                         })

@@ -3,30 +3,14 @@ import CoreBluetooth
 import Combine
 
 
-struct ProcessStatus: Equatable {
-    enum Result {
-        case Processing
-        case Complete
-        case Failed
-        case Unknown
-    }
-    
-    var step: Int
-    var weight: Float
-    var status: Result
-}
-
 
 class BluetoothEngine: NSObject, ObservableObject, CBCentralManagerDelegate {
     @Published var comStatus: String = "Disconnected"
-    @Published var robotStatus: String = ""
-    @Published var cupStatus: Bool = false
-    @Published var robotProcess: ProcessStatus?
     @Published var rx: String = ""
     @Published var isConnected: Bool = false
     @Published var txReady = false
     
-    var shouldConnectOnReady = true
+    private var shouldConnectOnReady = true
     
     
     
@@ -159,21 +143,18 @@ extension BluetoothEngine: CBPeripheralDelegate {
         }
 
         if let message = String(data: data, encoding: .utf8) {
+            rx = message
             
-            if (findCharacteristicForRobotStatus() == characteristic) {
-                print("[BLE] RX StatusMSG: \(message)")
-                
-                if let process = interpretRobotStatus(message) {
-                    robotProcess = process
-                } else if let status = getStatusMessage(message) {
-                    if (status.0 == 0) {
-                        robotStatus = status.1
-                    } else if (status.0 == 1) {
-                        cupStatus = (status.1 == "1") ? true : false
-                    }
-                }
-                
-            }
+//            if (findCharacteristicForRobotStatus() == characteristic) {
+//                print("[BLE] RX StatusMSG: \(message)")
+//                if let status = getStatusMessage(message) {
+//                    if (status.0 == 0) {
+//                        robotStatus = status.1
+//                    } else if (status.0 == 1) {
+//                        cupStatus = (status.1 == "1") ? true : false
+//                    }
+//                }
+//            }
             
             if (findCharacteristicForSending() == characteristic) {
                 print("[BLE] RX ControlMSG: \(message)")
@@ -185,8 +166,6 @@ extension BluetoothEngine: CBPeripheralDelegate {
             print("[BLE] RX Conversion Failed")
         }
     }
-
-
     
 }
 
@@ -242,59 +221,6 @@ extension BluetoothEngine {
 }
 
 
-func interpretRobotStatus(_ input: String) -> ProcessStatus? {
-    // Check if the string starts with 'S' and remove it
-    let prefix = input.prefix(1)
-        let trimmedString = String(input.dropFirst())
-        
-        // Split the string by '='
-        let components = trimmedString.split(separator: "=", omittingEmptySubsequences: true)
-        if components.count != 2 {
-            print("[BLE] [interpretRobotStatus] [ERROR] Malformed Message. Missing component")
-            return nil
-        }
-        
-        // Extract and convert the numeric part
-        let stepPart = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let step = Int(stepPart) else {
-            print("[BLE] [interpretRobotStatus] [ERROR] Malformed Message. Cant extract step")
-            return nil
-        }
-    
-    var result = ProcessStatus(step: 0, weight: -1, status: .Unknown)
-    result.step = step
-        
-    
-    if (prefix == "W") {
-        let weightPart = components[1].trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanedWeight = weightPart.trimmingCharacters(in: CharacterSet(charactersIn: ";"))
-        result.weight = Float(cleanedWeight) ?? 0
-    } else if (prefix == "S") {
-        // Extract the character part, remove semicolon if exists
-        let characterPart = components[1].trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanedCharacterPart = characterPart.trimmingCharacters(in: CharacterSet(charactersIn: ";"))
-        
-        
-        
-        if (cleanedCharacterPart == "P") {
-            print("[BLE] [interpretRobotStatus] Step: \(stepPart) PROCESSING")
-            result.status = .Processing
-        } else if (cleanedCharacterPart == "C") {
-        
-            print("[BLE] [interpretRobotStatus] Step: \(stepPart) COMPLETED")
-            result.status = .Complete
-        } else {
-            print("[BLE] [interpretRobotStatus] Step: \(stepPart) FAILED")
-        
-            result.status = .Failed
-        }
-    } else {        
-        return nil
-    }
-        
-    
-    return result
-}
 
 func getStatusMessage(_ input: String) -> (Int, String)? {
     guard input.first == "$" else {

@@ -9,11 +9,57 @@ import Foundation
 import Combine
 
 
+
+struct RobotStatus {
+    enum StatusType {
+        case Cup
+        case Text
+        case Unknown
+    }
+    
+    var isCupReady:Bool?
+    var text: String?
+    var type: StatusType = .Unknown
+    
+    mutating func setFrom(text input: String) -> Bool {
+        guard input.first == "$" else {
+              return false
+          }
+
+          let components = input.dropFirst().split(separator: "=", maxSplits: 1, omittingEmptySubsequences: true)
+          if components.count != 2 {
+              print("[BLE][getStatusMessage][ERROR] Malformatted status message, does not contain enough components")
+              return false
+          }
+          
+        let messageTypeComp = Int(components[0])
+        let cleanedTextComp = String(components[1])
+        
+        switch messageTypeComp {
+        case 0:
+            type = .Text
+            text = cleanedTextComp
+        case 1:
+            type = .Cup
+            if (cleanedTextComp == "1") { isCupReady = true } else { isCupReady = false }
+        default:
+            type = .Unknown
+            isCupReady = nil
+            text = nil
+        }
+        
+      return true
+    }
+}
+
+
 class RemoteEngine: ObservableObject {    
     @Published var isReady: Bool = false
-    @Published var statusMessage: String = ""
+    @Published var stateMessage: String = ""
+    @Published var robotStatus: RobotStatus = RobotStatus()
     @Published var bluetoothEngine: BluetoothEngine
-    @Published var jobStatus = [JobStatus]()
+    @Published var jobProgress = [JobProgress]()
+
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -31,17 +77,17 @@ class RemoteEngine: ObservableObject {
                    .sink { [weak self] isConnected in
                        // Handle isConnected change
                        if (isConnected == true) {
-                           self?.statusMessage = "Connected"
+                           self?.stateMessage = "Connected"
                        }
                        else {
-                           self?.statusMessage = "Not Connected"
+                           self?.stateMessage = "Not Connected"
                        }
                    }
                    .store(in: &cancellables)
         
         bluetoothEngine.$rx
-                   .sink { [weak self] isConnected in
-                       self?.messageReceived(self?.bluetoothEngine.rx)
+                   .sink { [weak self] rx in
+                       self?.didReceivedMessage(rx)
                    }
                    .store(in: &cancellables)
         
@@ -55,55 +101,60 @@ class RemoteEngine: ObservableObject {
     
     func sendJobToRobot(_ drink: Drink) {
         
-        self.jobStatus.removeAll()
+        self.jobProgress.removeAll()
         
         var txString = "D:"
         var step = 0
         for ingredient in drink.ingredients {
+            self.jobProgress.append(JobProgress(step: step, weight: 0.0, status: .Sent))
+            
             let pct = Float(ingredient.percent) / 100
             let amt = Float(drink.totalQty) * pct
             txString += String(ingredient.stationId) + "=" + String(format: "%.2f", amt) + ","
-            self.jobStatus.append(JobStatus(step: step, weight: amt, status: .Sent))
+            
+            if (step==0) { self.jobProgress[0].status = .Processing}
+            
             step = step + 1
         }
         
         txString = String(txString.dropLast())
         print("[RemoteEngine] Sending : \(txString)" )
-        
-        
         bluetoothEngine.sendStringToPeripheral(txString)
     }
     
-    func performServing(drink: Drink) {
-        self.statusMessage = "Requesting Drink..."
+    func beginDispensing(drink: Drink) {
+        self.stateMessage = "Requesting Drink..."
         if (self.bluetoothEngine.isConnected == true) {
-            sendJobToRobot(drink)
+            self.sendJobToRobot(drink)
         }
     }
     
     func cancelServing() {
-        self.statusMessage = "Cancel Requested"
+        self.stateMessage = "Cancel Requested"
         if (self.bluetoothEngine.isConnected == true) {
             bluetoothEngine.sendStringToPeripheral("C!")
         }
     }
     
-    func messageReceived(_ message: String?) {
+    func didReceivedMessage(_ message: String?) {
         guard let message else {
             print("[RemoteEngine] Invalid messageReceived parameter == nil")
             return
         }
         
-        guard let jobUpdate = makeStatusFrom(message: message) else {
-            print("[RemoteEngine][messageReceived] Not a valid Status Message (ignoring): " + message)
+        if let newUpdate = makeStatusFrom(message: message) {
+            self.jobProgress[newUpdate.step].update(with: newUpdate)
             return
         }
+                        
+        if (robotStatus.setFrom(text: message) == false) {
+            print("[RemoteEngine] Invalid robotStatus ")
+        }
         
-//        print("[RemoteEngine][messageReceived] jobStatus Upated = [\(jobUpdate.step)]")
-        self.jobStatus[jobUpdate.step].step = jobUpdate.step
-        self.jobStatus[jobUpdate.step].weight = jobUpdate.weight
-        self.jobStatus[jobUpdate.step].status = jobUpdate.status
         
     }
+    
+            
+
     
 }
