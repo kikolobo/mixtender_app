@@ -7,25 +7,6 @@
 
 import SwiftUI
 
-
-struct ListItem: Identifiable {
-    var id: UUID { ingredient.id }
-    var ingredient: Ingredient
-    var completed: Bool
-    var working: Bool
-    var weight: Float
-    
-    var imageName: String {
-        if working == true && completed == false {
-            return "play.circle"
-        } else if completed == true {
-            return "checkmark.circle.fill"
-        } else {
-            return "circle"
-        }
-    }
-}
-
 struct ProcessView: View {
     let drink: Drink
     @State private var items: [ListItem] = []
@@ -74,7 +55,7 @@ struct ProcessView: View {
             Button(action: {
                 if (self.isProcessing == true) {
                     print("[ProcessView] Cancel Request")
-                    self.remoteEngine.cancelServing()
+                    self.remoteEngine.cancelDispense()
                 } else {
                     print("[ProcessView] Closing View")
                 }
@@ -146,6 +127,25 @@ struct AnyButtonStyle: ButtonStyle {
         _makeBody(configuration)
     }
 }
+
+struct ListItem: Identifiable {
+    var id: UUID { ingredient.id }
+    var ingredient: Ingredient
+    var completed: Bool
+    var working: Bool
+    var weight: Float
+    
+    var imageName: String {
+        if working == true && completed == false {
+            return "play.circle"
+        } else if completed == true {
+            return "checkmark.circle.fill"
+        } else {
+            return "circle"
+        }
+    }
+}
+
 
 // Define a preview for your SwiftUI view
 //
