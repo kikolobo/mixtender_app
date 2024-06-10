@@ -16,7 +16,6 @@ struct ProcessView: View {
     @EnvironmentObject var remoteEngine: RemoteEngine
 
     
-    
     init(drink: Drink) {
         self.drink = drink
         self._items = State(initialValue: drink.ingredients.map { ListItem(ingredient: $0, completed: false, working: false, weight: 0.0) })
