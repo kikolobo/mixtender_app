@@ -11,9 +11,8 @@ class BluetoothEngine: NSObject, ObservableObject, CBCentralManagerDelegate {
     @Published var txReady = false
     
     private var shouldConnectOnReady = true
-    
-    
-    
+    private var isManualDisconnect = false
+
     private var centralManager: CBCentralManager?
     private let targetPeripheralUUID: CBUUID
     private var discoveredPeripheral: CBPeripheral?
@@ -33,8 +32,6 @@ class BluetoothEngine: NSObject, ObservableObject, CBCentralManagerDelegate {
             if (shouldConnectOnReady == true)  {
                 connect()
             }
-            // Start scanning for devices
-            centralManager?.scanForPeripherals(withServices: [targetPeripheralUUID], options: nil)
         default:
             print("[BLE] Not Available")
             comStatus = "Bluetooth not Available"
@@ -61,6 +58,29 @@ class BluetoothEngine: NSObject, ObservableObject, CBCentralManagerDelegate {
 
     }
 
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        print("[BLE] Failed to connect: \(error?.localizedDescription ?? "unknown error")")
+        isConnected = false
+        txReady = false
+        comStatus = "Connection failed, retrying"
+        centralManager?.scanForPeripherals(withServices: [targetPeripheralUUID], options: nil)
+    }
+
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        print("[BLE] Disconnected: \(error?.localizedDescription ?? "no error")")
+        isConnected = false
+        txReady = false
+        discoveredPeripheral = nil
+
+        if isManualDisconnect {
+            isManualDisconnect = false
+            comStatus = "Disconnected"
+        } else {
+            comStatus = "Connection lost, searching for robot"
+            centralManager?.scanForPeripherals(withServices: [targetPeripheralUUID], options: nil)
+        }
+    }
+
     func connect() {
         shouldConnectOnReady = false
         print("[BLE] Called connect()")
@@ -76,6 +96,7 @@ class BluetoothEngine: NSObject, ObservableObject, CBCentralManagerDelegate {
     
     func disconnect() {
         guard let centralManager = centralManager, let discoveredPeripheral = discoveredPeripheral else { return }
+        isManualDisconnect = true
         centralManager.cancelPeripheralConnection(discoveredPeripheral)
         isConnected = false
         txReady = false
@@ -108,23 +129,38 @@ extension BluetoothEngine: CBPeripheralDelegate {
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: (any Error)?) {
+        if let error = error {
+            print("[BLE] Error discovering services: \(error.localizedDescription)")
+            return
+        }
+
         print("[BLE] peripheral didDiscoverServices: ")
-        for service in peripheral.services! {
+        guard let services = peripheral.services else { return }
+        for service in services {
             print("     S>" + service.uuid.uuidString)
-            service.peripheral?.delegate = self
-            service.peripheral?.discoverCharacteristics(nil, for: service)
+            peripheral.discoverCharacteristics(nil, for: service)
         }
     }
-    
+
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: (any Error)?) {
-        print("[BLE] peripheral didDiscoverCharacteristicsFor: " + service.uuid.uuidString)
-        
-        for characteristic in service.characteristics! {
-            print("    C>" + characteristic.uuid.uuidString)
-            peripheral.setNotifyValue(true, for: characteristic)
+        if let error = error {
+            print("[BLE] Error discovering characteristics: \(error.localizedDescription)")
+            return
         }
-        
-        txReady = true
+
+        print("[BLE] peripheral didDiscoverCharacteristicsFor: " + service.uuid.uuidString)
+
+        guard let characteristics = service.characteristics else { return }
+        for characteristic in characteristics {
+            print("    C>" + characteristic.uuid.uuidString)
+            if characteristic.properties.contains(.notify) {
+                peripheral.setNotifyValue(true, for: characteristic)
+            }
+        }
+
+        if service.uuid == targetPeripheralUUID {
+            txReady = true
+        }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: (any Error)?) {
@@ -144,24 +180,10 @@ extension BluetoothEngine: CBPeripheralDelegate {
 
         if let message = String(data: data, encoding: .utf8) {
             rx = message
-            
-//            if (findCharacteristicForRobotStatus() == characteristic) {
-//                print("[BLE] RX StatusMSG: \(message)")
-//                if let status = getStatusMessage(message) {
-//                    if (status.0 == 0) {
-//                        robotStatus = status.1
-//                    } else if (status.0 == 1) {
-//                        cupStatus = (status.1 == "1") ? true : false
-//                    }
-//                }
-//            }
-            
+
             if (findCharacteristicForSending() == characteristic) {
                 print("[BLE] RX ControlMSG: \(message)")
             }
-            
-            
-            // Handle the received message as needed
         } else {
             print("[BLE] RX Conversion Failed")
         }
@@ -215,26 +237,10 @@ extension BluetoothEngine {
             return
         }
 
-        let data = string.data(using: .utf8) // Convert the string to data
-        peripheral.writeValue(data!, for: characteristic, type: .withResponse)
+        guard let data = string.data(using: .utf8) else {
+            print("[BLE] Could not encode message as UTF-8")
+            return
+        }
+        peripheral.writeValue(data, for: characteristic, type: .withResponse)
     }
-}
-
-
-
-func getStatusMessage(_ input: String) -> (Int, String)? {
-    guard input.first == "$" else {
-          return nil
-      }
-
-      let components = input.dropFirst().split(separator: "=", maxSplits: 1, omittingEmptySubsequences: true)
-      if components.count != 2 {
-          print("[BLE][getStatusMessage][ERROR] Malformatted status message, does not contain enough components")
-          return nil
-      }
-      
-      let messageType = Int(components[0])
-      let cleanedStatus = String(components[1])
-
-    return (messageType, cleanedStatus) as? (Int, String)
 }

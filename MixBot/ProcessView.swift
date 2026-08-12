@@ -12,7 +12,7 @@ struct ProcessView: View {
     @State private var items: [ListItem] = []
     @State private var isProcessing = true
     
-    @Environment(\.presentationMode) var presentationMode
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var remoteEngine: RemoteEngine
 
     
@@ -39,7 +39,7 @@ struct ProcessView: View {
 
                     // Third column for the icon
                     Image(systemName: item.imageName)
-                        .foregroundColor(item.completed ? .green : .gray)
+                        .foregroundColor(item.completed ? .green : (item.failed ? .red : .gray))
                         .frame(width: 30, alignment: .center)  // Adjust width as needed
                         .onTapGesture {
                             item.completed.toggle()
@@ -58,8 +58,8 @@ struct ProcessView: View {
                 } else {
                     print("[ProcessView] Closing View")
                 }
-               self.presentationMode.wrappedValue.dismiss()
-                
+               dismiss()
+
             }) {
                 Text(self.isProcessing ? "Cancel" : "Done!")
                     .bold()
@@ -67,26 +67,48 @@ struct ProcessView: View {
                     
                        }
             .buttonStyle(isProcessing ? AnyButtonStyle(RedButtonStyle()) : AnyButtonStyle(GreenButtonStyle()))
-           
-        }.onAppear() {
+
+        }
+        // Keep the progress list at a comfortable width on iPad
+        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemGroupedBackground))
+        // Don't let a swipe close the sheet while the robot is dispensing
+        .interactiveDismissDisabled(isProcessing)
+        .onAppear() {
             remoteEngine.beginDispensing(drink: self.drink)
         }.onChange(of: remoteEngine.jobProgress) {
-            var completedCount = 0
+            var finishedCount = 0
             for newItem in remoteEngine.jobProgress {
                 let step = newItem.step
-                if (newItem.status == .Complete) {
+                guard self.items.indices.contains(step) else {
+                    print("[ProcessView] Ignoring progress for out-of-range step \(step)")
+                    continue
+                }
+
+                switch newItem.status {
+                case .Complete:
                     self.items[step].completed = true
                     self.items[step].working = false
-                    completedCount = completedCount + 1
-                } else if (newItem.status == .Processing) {
+                    self.items[step].failed = false
+                    finishedCount += 1
+                case .Processing:
                     self.items[step].working = true
                     self.items[step].completed = false
+                case .Failed:
+                    self.items[step].failed = true
+                    self.items[step].working = false
+                    self.items[step].completed = false
+                    finishedCount += 1
+                default:
+                    break
                 }
-                                
+
                 self.items[step].weight = newItem.weight
             }
-            
-            if (completedCount >= self.items.count) {
+
+            // Failed steps also count as finished so the view can't get stuck in "Cancel"
+            if (finishedCount >= self.items.count) {
                 self.isProcessing = false
             }
         }
@@ -116,7 +138,6 @@ struct GreenButtonStyle: ButtonStyle {
 
 struct AnyButtonStyle: ButtonStyle {
     private let _makeBody: (Configuration) -> AnyView
-    @EnvironmentObject var bluetoothEngine: BluetoothEngine
 
     init<Style: ButtonStyle>(_ style: Style) {
         _makeBody = { configuration in AnyView(style.makeBody(configuration: configuration)) }
@@ -133,9 +154,12 @@ struct ListItem: Identifiable {
     var completed: Bool
     var working: Bool
     var weight: Float
-    
+    var failed: Bool = false
+
     var imageName: String {
-        if working == true && completed == false {
+        if failed == true {
+            return "xmark.circle.fill"
+        } else if working == true && completed == false {
             return "play.circle"
         } else if completed == true {
             return "checkmark.circle.fill"

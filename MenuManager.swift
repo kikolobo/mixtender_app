@@ -28,31 +28,28 @@ func downloadAndCacheMenu(completion: @escaping ([Drink]?) -> Void) {
     
     let urlRequest = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 60.0)
     let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
+        var drinks: [Drink]? = nil
+
         if let error = error {
             print("Failed to download data: \(error)")
-            completion(nil)
-            return
-        }
-        
-        guard let data = data else {
+        } else if let data = data {
+            do {
+                drinks = try JSONDecoder().decode([Drink].self, from: data)
+                // Only cache data that decoded successfully
+                saveDataToCache(data: data)
+            } catch {
+                print("Error decoding JSON: \(error)")
+            }
+        } else {
             print("No data received")
-            completion(nil)
-            return
         }
-        
-        // Save the data to the local cache
-        saveDataToCache(data: data)
-        
-        // Decode the JSON data
-        do {
-            let drinks = try JSONDecoder().decode([Drink].self, from: data)
-            completion(drinks)                        
-        } catch {
-            print("Error decoding JSON: \(error)")
-            completion(nil)
+
+        // Callers update UI state, so deliver the result on the main thread
+        DispatchQueue.main.async {
+            completion(drinks)
         }
     }
-    
+
     task.resume()
 }
 

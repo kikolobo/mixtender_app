@@ -11,8 +11,7 @@ import Combine
 
 class RemoteEngine: ObservableObject {    
     
-    @Published var bluetoothEngine: BluetoothEngine
-    @Published var isReady: Bool = false
+    let bluetoothEngine: BluetoothEngine
     @Published var robotStatus: RobotStatus = RobotStatus()
     @Published var jobProgress = [JobProgress]()
 
@@ -37,6 +36,7 @@ class RemoteEngine: ObservableObject {
         
         bluetoothEngine.$txReady
             .sink { [weak self] txReady in
+                guard txReady else { return }
                 print("[RemoteEngine] BLE TX is Ready \(String(describing: self?.bluetoothEngine.comStatus))")
                 self?.bluetoothEngine.sendStringToPeripheral("ehlo")
             }
@@ -44,7 +44,11 @@ class RemoteEngine: ObservableObject {
     }
     
     func sendJobToRobot(_ drink: Drink) {
-        
+        guard !drink.ingredients.isEmpty else {
+            print("[RemoteEngine] Drink has no ingredients, nothing to send")
+            return
+        }
+
         self.jobProgress.removeAll()
         
         var txString = "D:"
@@ -85,6 +89,10 @@ class RemoteEngine: ObservableObject {
         }
         
         if let newUpdate = makeStatusFrom(message: message) {
+            guard jobProgress.indices.contains(newUpdate.step) else {
+                print("[RemoteEngine] Ignoring progress for out-of-range step \(newUpdate.step)")
+                return
+            }
             self.jobProgress[newUpdate.step].update(with: newUpdate)
             return
         }
