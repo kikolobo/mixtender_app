@@ -24,6 +24,9 @@ struct DrinkMenuView: View {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 12)], spacing: 12) {
                             ForEach(Array(drinks.enumerated()), id: \.element.id) { index, drink in
                                 Button {
+                                    // Ignore taps that race a sheet dismissal — reassigning the
+                                    // item mid-dismiss makes SwiftUI reuse the old sheet's state
+                                    guard selectedDrink == nil else { return }
                                     selectedDrink = drink
                                 } label: {
                                     DrinkCard(drink: drink, accent: accents[index % accents.count])
@@ -60,6 +63,9 @@ struct DrinkMenuView: View {
         .sheet(item: $selectedDrink) { drink in
             NavigationStack {
                 DrinkDetailView(drink: drink)
+                    // Force fresh view state per drink so a lingering
+                    // presentation can never show the previous formula
+                    .id(drink.id)
             }
             .zoomTransition(sourceID: drink.id, in: zoomNamespace)
             .drinkSheetSizing()

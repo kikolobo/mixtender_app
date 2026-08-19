@@ -23,6 +23,7 @@
 		009BEE5E2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE5D2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift */; };
 		009BEE6D2BAD3312007893A2 /* DrinkDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE6C2BAD3312007893A2 /* DrinkDetailView.swift */; };
 		00AA1813302C4DC600CC0CBB /* BubblesBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00AA1812302C4DC600CC0CBB /* BubblesBackground.swift */; };
+		00B9368A30357D6A00CE889E /* ServingGlassView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00B9368930357D6A00CE889E /* ServingGlassView.swift */; };
 		00D24AD52C0D2F0200FB8876 /* RobotStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D24AD42C0D2F0200FB8876 /* RobotStatus.swift */; };
 		00E585252BDAC80500B5F238 /* JobProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E585242BDAC80500B5F238 /* JobProgress.swift */; };
 /* End PBXBuildFile section */
@@ -64,6 +65,7 @@
 		009BEE5D2BAD312B007893A2 /* MixBotUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixBotUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		009BEE6C2BAD3312007893A2 /* DrinkDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkDetailView.swift; sourceTree = "<group>"; };
 		00AA1812302C4DC600CC0CBB /* BubblesBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BubblesBackground.swift; sourceTree = "<group>"; };
+		00B9368930357D6A00CE889E /* ServingGlassView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServingGlassView.swift; sourceTree = "<group>"; };
 		00D24AD42C0D2F0200FB8876 /* RobotStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RobotStatus.swift; sourceTree = "<group>"; };
 		00E585242BDAC80500B5F238 /* JobProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobProgress.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -138,6 +140,7 @@
 				008434BA2BB027C600C90D77 /* BLEEngine.swift */,
 				000024202BD49F02004B3257 /* RemoteEngine.swift */,
 				00AA1812302C4DC600CC0CBB /* BubblesBackground.swift */,
+				00B9368930357D6A00CE889E /* ServingGlassView.swift */,
 			);
 			path = MixBot;
 			sourceTree = "<group>";
@@ -248,7 +251,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1530;
-				LastUpgradeCheck = 1530;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					009BEE3C2BAD312A007893A2 = {
 						CreatedOnToolsVersion = 15.3;
@@ -320,6 +323,7 @@
 				009BEE6D2BAD3312007893A2 /* DrinkDetailView.swift in Sources */,
 				00E585252BDAC80500B5F238 /* JobProgress.swift in Sources */,
 				008434B82BB026FF00C90D77 /* Ingredient.swift in Sources */,
+				00B9368A30357D6A00CE889E /* ServingGlassView.swift in Sources */,
 				008434BB2BB027C600C90D77 /* BLEEngine.swift in Sources */,
 				00D24AD52C0D2F0200FB8876 /* RobotStatus.swift in Sources */,
 				00541C012BFC531E001A9313 /* MenuManager.swift in Sources */,
@@ -398,6 +402,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = E92H7P5GDX;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -421,6 +426,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -461,6 +467,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = E92H7P5GDX;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -477,6 +484,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -490,7 +498,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"MixBot/Preview Content\"";
-				DEVELOPMENT_TEAM = E92H7P5GDX;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
@@ -521,7 +528,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"MixBot/Preview Content\"";
-				DEVELOPMENT_TEAM = E92H7P5GDX;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
@@ -547,11 +553,9 @@
 		009BEE652BAD312B007893A2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = E92H7P5GDX;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
 				MARKETING_VERSION = 1.0;
@@ -567,11 +571,9 @@
 		009BEE662BAD312B007893A2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = E92H7P5GDX;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
 				MARKETING_VERSION = 1.0;
@@ -587,10 +589,8 @@
 		009BEE682BAD312B007893A2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = E92H7P5GDX;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.MovicRec.MixBotUITests;
@@ -605,10 +605,8 @@
 		009BEE692BAD312B007893A2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = E92H7P5GDX;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.MovicRec.MixBotUITests;

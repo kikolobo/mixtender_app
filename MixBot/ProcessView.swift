@@ -22,35 +22,17 @@ struct ProcessView: View {
     }
 
     var body: some View {
-        List {
-            ForEach($items) { $item in
-                HStack {
-                    // First column for the ingredient name
-                    Text(item.ingredient.name)
-                        .frame(width: 120, alignment: .leading)  // Adjust width as needed
-                    
-                    Spacer()
-
-                    // Second column for the weight
-                    Text(String(format: "%.2f", item.weight))  // Formatting to 2 decimal places
-                        .frame(width: 60, alignment: .trailing)  // Adjust width as needed
-
-                    Spacer()
-
-                    // Third column for the icon
-                    Image(systemName: item.imageName)
-                        .foregroundColor(item.completed ? .green : (item.failed ? .red : .gray))
-                        .frame(width: 30, alignment: .center)  // Adjust width as needed
-                        .onTapGesture {
-                            item.completed.toggle()
-                        }
-                }
+        VStack(spacing: 14) {
+            ServingGlassView(items: items, totalQty: drink.totalQty) { index in
+                items[index].completed.toggle()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
             Text(remoteEngine.robotStatus.text ?? "--")
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
-                .padding()
                 .font(.callout)
+                .foregroundStyle(.secondary)
             Button(action: {
                 if (self.isProcessing == true) {
                     print("[ProcessView] Cancel Request")
@@ -69,7 +51,8 @@ struct ProcessView: View {
             .buttonStyle(isProcessing ? AnyButtonStyle(RedButtonStyle()) : AnyButtonStyle(GreenButtonStyle()))
 
         }
-        // Keep the progress list at a comfortable width on iPad
+        .padding()
+        // Keep the progress view at a comfortable width on iPad
         .frame(maxWidth: 640)
         .frame(maxWidth: .infinity)
         .background(Color(.systemGroupedBackground))
