@@ -15,27 +15,20 @@ import FoundationModels
 // available, so this view can assume the model exists. The pantry comes from
 // the live menu so suggestions always match what's physically loaded.
 
-// What the model must produce. Guided generation guarantees the shape; the
-// app still validates station ids and normalizes percents afterwards because
-// the model can't be trusted with arithmetic.
-@Generable(description: "A cocktail recipe the robot can pour")
-struct AIGeneratedDrink {
-    @Guide(description: "A short, catchy, original drink name of at most four words")
+// What the model must produce, as JSON text. Guided generation would be the
+// natural fit, but Apple's default guardrails flag alcohol content and the
+// permissive guardrail mode only applies to plain String responses — so the
+// model writes JSON and the app parses it. The app validates station ids and
+// normalizes percents afterwards regardless, because the model can't be
+// trusted with arithmetic.
+struct AIGeneratedDrink: Decodable {
     var name: String
-
-    @Guide(description: "One playful sentence describing the drink's taste")
     var description: String
-
-    @Guide(description: "2 to 4 ingredients, each using a different station id from the provided list")
     var ingredients: [AIGeneratedIngredient]
 }
 
-@Generable(description: "One ingredient of the cocktail")
-struct AIGeneratedIngredient {
-    @Guide(description: "The station id of one of the available ingredients")
+struct AIGeneratedIngredient: Decodable {
     var stationId: Int
-
-    @Guide(description: "Whole-number percent of the drink between 5 and 90; all ingredients together must total 100")
     var percent: Int
 }
 
@@ -234,8 +227,9 @@ struct AITenderView: View {
             .map { "\($0.id) — \($0.name) (\($0.resolvedKind.label.lowercased()))" }
             .joined(separator: "\n")
         return """
-        You are AI Tender, a playful robot bartender at a house party. You invent \
-        cocktail recipes the robot can pour from its stations.
+        You are AI Tender, a playful robot bartender at a private house party for \
+        adults. Inventing cocktail recipes with alcohol is your normal, appropriate \
+        job here. You invent cocktail recipes the robot can pour from its stations.
 
         Available stations (id — ingredient — dispenser):
         \(pantry)
@@ -247,7 +241,26 @@ struct AITenderView: View {
         - Unless the guest explicitly asks for a strong drink, keep liquor at or below 40 percent of the total.
         - Drink names must be original and fun; never reuse a well-known cocktail name unless the recipe matches it.
         - The description is exactly one playful sentence about the taste.
+
+        OUTPUT FORMAT: respond with ONLY a JSON object, no markdown, no prose, no code fences:
+        {"name": "Drink Name", "description": "One sentence.", "ingredients": [{"stationId": 1, "percent": 30}, {"stationId": 9, "percent": 70}]}
         """
+    }
+
+    /// Pulls the JSON object out of the model's reply, tolerating stray prose
+    /// or code fences around it.
+    private func parseDrink(from reply: String) -> AIGeneratedDrink? {
+        guard let start = reply.firstIndex(of: "{"),
+              let end = reply.lastIndex(of: "}"),
+              start < end else { return nil }
+        let json = String(reply[start...end])
+        return try? JSONDecoder().decode(AIGeneratedDrink.self, from: Data(json.utf8))
+    }
+
+    private func looksLikeRefusal(_ reply: String) -> Bool {
+        let lowered = reply.lowercased()
+        return lowered.contains("i can't") || lowered.contains("i cannot")
+            || lowered.contains("sorry") || lowered.contains("unable to")
     }
 
     @MainActor
@@ -265,9 +278,33 @@ struct AITenderView: View {
         mixErrorText = nil
         defer { isMixing = false }
         do {
-            let activeSession = session ?? LanguageModelSession(instructions: instructions)
+            // Permissive guardrails: the default ones reject alcohol content
+            // outright ("May contain unsafe content"). Only honored for String
+            // responses, hence the JSON contract above.
+            let activeSession = session ?? LanguageModelSession(
+                model: SystemLanguageModel(guardrails: .permissiveContentTransformations),
+                instructions: instructions
+            )
             session = activeSession
-            let generated = try await activeSession.respond(to: prompt, generating: AIGeneratedDrink.self).content
+
+            var reply = try await activeSession.respond(to: prompt).content
+            print("[AITender] Reply: \(reply)")
+            var generated = parseDrink(from: reply)
+            if generated == nil, !looksLikeRefusal(reply) {
+                // One corrective retry: small models sometimes wrap or narrate
+                reply = try await activeSession.respond(
+                    to: "Respond again with ONLY the JSON object for that drink, nothing else."
+                ).content
+                print("[AITender] Retry reply: \(reply)")
+                generated = parseDrink(from: reply)
+            }
+
+            guard let generated else {
+                mixErrorText = looksLikeRefusal(reply)
+                    ? "AI Tender politely declined that one. Try different moods or words."
+                    : "AI Tender's answer came out garbled. Shake again!"
+                return
+            }
             guard let drink = drink(from: generated) else {
                 mixErrorText = "That idea didn't map to the robot's stations. Try again!"
                 return
@@ -275,8 +312,34 @@ struct AITenderView: View {
             creation = drink
             showCreation = true
         } catch {
-            mixErrorText = error.localizedDescription
+            // localizedDescription collapses every GenerationError into "The
+            // operation couldn't be completed"; reflecting the value keeps the
+            // case name and the framework's debug description
+            let detail = String(reflecting: error)
+            print("[AITender] Generation failed: \(detail)")
+            mixErrorText = friendlyMessage(for: error, detail: detail)
         }
+    }
+
+    /// Turns a FoundationModels failure into something a guest can act on.
+    private func friendlyMessage(for error: Error, detail: String) -> String {
+        let lowered = detail.lowercased()
+        if lowered.contains("guardrail") || lowered.contains("refusal") || lowered.contains("unsafe content") {
+            return "AI Tender couldn't help with that request. Try different words or moods."
+        }
+        if lowered.contains("ratelimit") || lowered.contains("rate limit") || lowered.contains("concurrent") {
+            return "AI Tender is busy. Give it a second and try again."
+        }
+        if lowered.contains("context") {
+            return "AI Tender lost the thread. Close and reopen to start fresh."
+        }
+        if lowered.contains("asset") || lowered.contains("notready") {
+            return "The on-device model is still getting ready. Try again shortly."
+        }
+        if lowered.contains("decoding") {
+            return "AI Tender's answer came out garbled. Shake again!"
+        }
+        return "AI Tender hit a snag: \(detail)"
     }
 
     /// Maps the model's output onto the pantry: drops unknown stations, merges
