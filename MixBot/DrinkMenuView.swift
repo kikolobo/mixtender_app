@@ -104,10 +104,24 @@ struct DrinkMenuView: View {
                     // Force fresh view state per drink so a lingering
                     // presentation can never show the previous formula
                     .id(drink.id)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button {
+                                selectedDrink = nil
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .foregroundStyle(.primary)
+                            }
+                            .accessibilityLabel("Close")
+                        }
+                    }
             }
             .zoomTransition(sourceID: drink.id, in: zoomNamespace)
             .drinkSheetSizing()
-            .presentationDragIndicator(.visible)
+            // The sheet is locked: dragging the sliders near the top edge must
+            // never swipe the drink away, so the close button is the only way out
+            .interactiveDismissDisabled()
+            .presentationDragIndicator(.hidden)
         }
         .onAppear {
             remoteEngine.bluetoothEngine.connect()
@@ -160,6 +174,17 @@ extension View {
     func drinkSheetSizing() -> some View {
         if #available(iOS 18.0, *) {
             self.presentationSizing(DrinkSheetSizing())
+        } else {
+            self
+        }
+    }
+
+    // The editor holds a drink list plus nested forms, so on iPad it gets the
+    // largest standard sheet; no effect on iPhone.
+    @ViewBuilder
+    func menuEditorSheetSizing() -> some View {
+        if #available(iOS 18.0, *) {
+            self.presentationSizing(.page)
         } else {
             self
         }

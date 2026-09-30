@@ -57,13 +57,17 @@ struct MenuEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button {
                         if hasChanges {
                             showDiscardConfirm = true
                         } else {
                             dismiss()
                         }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .foregroundStyle(.primary)
                     }
+                    .accessibilityLabel("Close")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isSaving ? "Saving…" : "Save") {
@@ -91,7 +95,11 @@ struct MenuEditorView: View {
             }
         }
         .task { await load() }
-        .interactiveDismissDisabled(hasChanges)
+        // The sheet is locked: slider drags and stray swipes must never close
+        // the editor, so the close button is the only way out
+        .interactiveDismissDisabled()
+        .presentationDragIndicator(.hidden)
+        .menuEditorSheetSizing()
     }
 
     private func drinkList(_ menu: Binding<DrinkMenu>) -> some View {
