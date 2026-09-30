@@ -5,6 +5,7 @@ struct DrinkMenuView: View {
 
     @State private var drinks: [Drink] = []
     @State private var selectedDrink: Drink?
+    @State private var showMenuEditor = false
     @Namespace private var zoomNamespace
 
     // Accent colors cycled through the drink cards
@@ -51,12 +52,29 @@ struct DrinkMenuView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Choose a Drink")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        showMenuEditor = true
+                    }) {
+                        Image(systemName: "square.and.pencil").foregroundColor(.primary)
+                    }
+                    .accessibilityLabel("Edit Menu")
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         fetchDrinks()
                     }) {
                         Image(systemName: "arrow.clockwise").foregroundColor(.primary)
                     }
+                }
+            }
+            // Attached here (not next to the drink sheet) so both sheets can coexist
+            .sheet(isPresented: $showMenuEditor) {
+                MenuEditorView { savedDrinks in
+                    // Update straight from the saved data: a server refetch right
+                    // after a save can still return the previous version (KV
+                    // propagation delay)
+                    self.drinks = savedDrinks
                 }
             }
         }
