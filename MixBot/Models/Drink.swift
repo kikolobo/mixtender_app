@@ -14,6 +14,7 @@ struct Drink: Identifiable, Codable {
     var totalQty: Int
     var ingredients: [Ingredient]
     var author: String? = nil
+    var aiAssisted: Bool? = nil
 
     // Stable across menu refreshes — a random UUID per decode broke sheet
     // identity and zoom transition matching when the menu reloaded

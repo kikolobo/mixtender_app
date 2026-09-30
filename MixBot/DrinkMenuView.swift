@@ -374,10 +374,16 @@ struct DrinkCard: View {
                         .lineLimit(1)
                 }
                 if let displayAuthor {
-                    Label("By \(displayAuthor)", systemImage: "person.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        Label("By \(displayAuthor)", systemImage: "person.fill")
+                        if drink.aiAssisted == true {
+                            Image(systemName: "apple.intelligence")
+                                .accessibilityLabel("Made with AI Tender")
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
                 }
             }
 

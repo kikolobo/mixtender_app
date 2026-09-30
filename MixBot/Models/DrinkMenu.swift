@@ -58,6 +58,9 @@ struct MenuDrink: Codable, Identifiable, Equatable {
     var ingredients: [MenuIngredient]
     // Who created the recipe; omitted from the wire format when absent
     var author: String? = nil
+    // Permanent provenance: true when AI Tender had a hand in the recipe.
+    // Never cleared by later edits; omitted from the wire format when absent
+    var aiAssisted: Bool? = nil
 
     enum CodingKeys: CodingKey {
         case name
@@ -65,6 +68,7 @@ struct MenuDrink: Codable, Identifiable, Equatable {
         case totalQty
         case ingredients
         case author
+        case aiAssisted
     }
 }
 
@@ -174,7 +178,8 @@ extension DrinkMenu {
                                  stationId: ingredient.stationId,
                                  percent: ingredient.percent)
                   },
-                  author: drink.author)
+                  author: drink.author,
+                  aiAssisted: drink.aiAssisted)
         }
     }
 }

@@ -190,7 +190,8 @@ struct MenuEditorView: View {
                              ingredients: drink.ingredients.map {
                                  MenuIngredient(stationId: $0.stationId, percent: $0.percent, label: $0.label)
                              },
-                             author: drink.author)
+                             author: drink.author,
+                             aiAssisted: drink.aiAssisted)
         menu.drinks.insert(copy, at: index + 1)
         self.menu = menu
     }

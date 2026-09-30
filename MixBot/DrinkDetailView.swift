@@ -8,6 +8,9 @@ struct DrinkDetailView: View {
 
     // "Make It Your Own": save a modified mix as a new drink on the menu
     let onDrinkAdded: ([Drink]) -> Void
+    // True for drinks born in the app (AI Tender) rather than on the menu:
+    // saving is always offered and the drink's own name/description prefill
+    let isCreation: Bool
     private let originalPercents: [Double]
     @State private var showCreationSheet = false
     @State private var newDrinkName = ""
@@ -18,8 +21,9 @@ struct DrinkDetailView: View {
     // Same palette as the menu, cycled per ingredient
     private let accents: [Color] = [.purple, .pink, .orange, .teal, .indigo, .mint]
 
-    init(drink: Drink, onDrinkAdded: @escaping ([Drink]) -> Void = { _ in }) {
+    init(drink: Drink, isCreation: Bool = false, onDrinkAdded: @escaping ([Drink]) -> Void = { _ in }) {
         self.drink = drink
+        self.isCreation = isCreation
         self.onDrinkAdded = onDrinkAdded
         self.originalPercents = drink.ingredients.map(\.percent)
         // Seed from the recipe directly so the mix never flashes an
@@ -38,10 +42,16 @@ struct DrinkDetailView: View {
                 }
 
                 if let author = drink.author, !author.isEmpty {
-                    Label("By \(author)", systemImage: "person.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 4) {
+                        Label("By \(author)", systemImage: "person.fill")
+                        if drink.aiAssisted == true {
+                            Image(systemName: "apple.intelligence")
+                                .accessibilityLabel("Made with AI Tender")
+                        }
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 MixProportionCard(
@@ -89,9 +99,9 @@ struct DrinkDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if isModified {
+                if isModified || isCreation {
                     Button {
-                        newDrinkName = ""
+                        newDrinkName = isCreation ? drink.name : ""
                         newDrinkAuthor = ""
                         showCreationSheet = true
                     } label: {
@@ -169,10 +179,11 @@ struct DrinkDetailView: View {
 
             let author = newDrinkAuthor.trimmingCharacters(in: .whitespaces)
             menu.drinks.append(MenuDrink(name: name,
-                                         description: "Based on \(drink.name)",
+                                         description: isCreation ? drink.description : "Based on \(drink.name)",
                                          totalQty: drink.totalQty,
                                          ingredients: ingredients,
-                                         author: author.isEmpty ? nil : author))
+                                         author: author.isEmpty ? nil : author,
+                                         aiAssisted: drink.aiAssisted == true ? true : nil))
 
             _ = try await MenuAPI.save(menu, ifMatch: updatedAt)
             if let drinks = menu.resolvedDrinks() {
