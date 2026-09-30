@@ -30,9 +30,10 @@ func loadLocalDrinks() -> [Drink] {  //Load Drink
 }
 
 func downloadAndCacheMenu(completion: @escaping ([Drink]?) -> Void) {
-    // v2 menu with station definitions; the old drinks.json stays on the
-    // server so app versions that predate this format keep working
-    let urlString = "https://www.grupomovic.com/mixtender/drinks_v2.json"
+    // MixBot menu API (Cloudflare Worker); serves the v2 format with station
+    // definitions. The old static drinks.json stays on grupomovic.com so app
+    // versions that predate this format keep working.
+    let urlString = "https://mixbot-api.kixlobo.workers.dev/menu"
     
     guard let url = URL(string: urlString) else {
         print("Invalid URL")

@@ -2,9 +2,14 @@
     "version": 2,
     "stations": [
         { "id": 1, "name": "Tequila" },
-        { "id": 2, "name": "Tonic Water" },
+        { "id": 2, "name": "Bacardi" },
+        { "id": 3, "name": "Gin" },
+        { "id": 4, "name": "Whiskey" },
+        { "id": 5, "name": "Coffee" },
+        { "id": 6, "name": "Licor 43" },
         { "id": 7, "name": "Coca Light" },
-        { "id": 8, "name": "Mineral Water" }
+        { "id": 8, "name": "Mineral Water" },
+        { "id": 9, "name": "Tonic" }
     ],
     "drinks": [
         {
@@ -12,17 +17,17 @@
             "description": "A refreshing classic.",
             "totalQty": 300,
             "ingredients": [
-                { "stationId": 1, "percent": 25, "label": "Gin" },
-                { "stationId": 2, "percent": 75 }
+                { "stationId": 3, "percent": 25 },
+                { "stationId": 9, "percent": 75 }
             ]
         },
         {
             "name": "Gin & Soda with Tonic",
             "description": "A refreshing classic modified to be fresher",
-            "totalQty": 400,
+            "totalQty": 300,
             "ingredients": [
-                { "stationId": 1, "percent": 20, "label": "Gin" },
-                { "stationId": 7, "percent": 15, "label": "Tonic Water" },
+                { "stationId": 3, "percent": 20 },
+                { "stationId": 9, "percent": 15 },
                 { "stationId": 8, "percent": 65, "label": "Soda Water" }
             ]
         },

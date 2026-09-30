@@ -1,0 +1,7 @@
+name = "mixbot-api"
+main = "src/index.js"
+compatibility_date = "2026-09-30"
+
+[[kv_namespaces]]
+binding = "MENU_KV"
+id = "a4f9dfac66e041b7b88ac1818d01d94d"
