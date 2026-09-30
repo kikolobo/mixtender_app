@@ -1,10 +1,12 @@
 import SwiftUI
+import FoundationModels
 
 struct DrinkMenuView: View {
     @EnvironmentObject var remoteEngine: RemoteEngine
 
     @State private var drinks: [Drink] = []
     @State private var selectedDrink: Drink?
+    @State private var showAITender = false
     @State private var showMenuEditor = false
     @State private var showPasscodePrompt = false
     @State private var passcodeAccepted = false
@@ -37,6 +39,17 @@ struct DrinkMenuView: View {
                                 .buttonStyle(.plain)
                                 .zoomTransitionSource(id: drink.id, in: zoomNamespace)
                             }
+
+                            // Only on Apple Intelligence-capable devices; the
+                            // card is app UI, never part of the menu data
+                            if SystemLanguageModel.default.availability == .available {
+                                Button {
+                                    showAITender = true
+                                } label: {
+                                    AITenderCard()
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -68,6 +81,11 @@ struct DrinkMenuView: View {
                     }) {
                         Image(systemName: "arrow.clockwise").foregroundColor(.primary)
                     }
+                }
+            }
+            .sheet(isPresented: $showAITender) {
+                AITenderView { savedDrinks in
+                    self.drinks = savedDrinks
                 }
             }
             // Attached here (not next to the drink sheet) so both sheets can coexist
@@ -400,6 +418,49 @@ struct DrinkCard: View {
             RoundedRectangle(cornerRadius: 18)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+        )
+    }
+}
+
+// Marquee card for the AI drink creator, shaped like a DrinkCard but unmissable
+struct AITenderCard: View {
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(.white.opacity(0.22))
+                Image(systemName: "apple.intelligence")
+                    .font(.title3)
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 54, height: 54)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("AI Tender")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text("Tell me what you're craving and I'll invent a drink just for you.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 8)
+
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.7))
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(LinearGradient(
+                    colors: [.purple, .pink],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .shadow(color: .purple.opacity(0.35), radius: 8, y: 3)
         )
     }
 }

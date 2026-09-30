@@ -1,0 +1,327 @@
+//
+//  AITenderView.swift
+//  MixBot
+//
+
+import SwiftUI
+import FoundationModels
+
+// AI Tender: an on-device bartender (FoundationModels) that invents a drink
+// from whatever the robot's stations currently hold. The result opens in the
+// standard DrinkDetailView for slider fine-tuning, serving, and "Make It Your
+// Own" publishing with the guest's name and the aiAssisted provenance flag.
+//
+// The menu card that opens this sheet only appears when the system model is
+// available, so this view can assume the model exists. The pantry comes from
+// the live menu so suggestions always match what's physically loaded.
+
+// What the model must produce. Guided generation guarantees the shape; the
+// app still validates station ids and normalizes percents afterwards because
+// the model can't be trusted with arithmetic.
+@Generable(description: "A cocktail recipe the robot can pour")
+struct AIGeneratedDrink {
+    @Guide(description: "A short, catchy, original drink name of at most four words")
+    var name: String
+
+    @Guide(description: "One playful sentence describing the drink's taste")
+    var description: String
+
+    @Guide(description: "2 to 4 ingredients, each using a different station id from the provided list")
+    var ingredients: [AIGeneratedIngredient]
+}
+
+@Generable(description: "One ingredient of the cocktail")
+struct AIGeneratedIngredient {
+    @Guide(description: "The station id of one of the available ingredients")
+    var stationId: Int
+
+    @Guide(description: "Whole-number percent of the drink between 5 and 90; all ingredients together must total 100")
+    var percent: Int
+}
+
+struct AITenderView: View {
+    /// Forwarded to DrinkDetailView so a saved creation updates the menu.
+    let onDrinkAdded: ([Drink]) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var stations: [Station] = []
+    @State private var loadErrorText: String?
+    @State private var isLoading = true
+
+    @State private var request = ""
+    @State private var selectedMoods: Set<String> = []
+    @State private var isMixing = false
+    @State private var mixErrorText: String?
+    @State private var creation: Drink?
+    @State private var showCreation = false
+    @State private var session: LanguageModelSession?
+
+    private static let moods = ["Refreshing", "Strong", "Sweet", "Sour",
+                                "Bitter", "Dessert", "Light", "Surprise me"]
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView("Checking what's on tap…")
+                        .controlSize(.large)
+                } else if let loadErrorText {
+                    VStack(spacing: 14) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text(loadErrorText)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.secondary)
+                        Button("Try Again") {
+                            Task { await loadStations() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding()
+                } else {
+                    creationForm
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .foregroundStyle(.primary)
+                    }
+                    .accessibilityLabel("Close")
+                }
+            }
+            .navigationDestination(isPresented: $showCreation) {
+                if let creation {
+                    DrinkDetailView(drink: creation, isCreation: true, onDrinkAdded: onDrinkAdded)
+                        .id(creation.id)
+                }
+            }
+        }
+        .task { await loadStations() }
+        .interactiveDismissDisabled()
+        .presentationDragIndicator(.hidden)
+        .drinkSheetSizing()
+    }
+
+    private var creationForm: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            colors: [.purple, .pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .shadow(color: .pink.opacity(0.35), radius: 10, y: 4)
+                    Image(systemName: "apple.intelligence")
+                        .font(.title)
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 64, height: 64)
+                .padding(.top, 10)
+
+                VStack(spacing: 4) {
+                    Text("AI Tender")
+                        .font(.title2.bold())
+                    Text("Tell me what you're craving and I'll invent a drink from what's on tap.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], spacing: 8) {
+                    ForEach(Self.moods, id: \.self) { mood in
+                        moodChip(mood)
+                    }
+                }
+
+                CreationField(icon: "text.bubble.fill",
+                              tint: .purple,
+                              placeholder: "Anything else? (optional)",
+                              text: $request)
+
+                if let mixErrorText {
+                    Text(mixErrorText)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                }
+
+                Button {
+                    Task { await mix() }
+                } label: {
+                    Group {
+                        if isMixing {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .tint(.white)
+                                Text("Mixing ideas…")
+                            }
+                        } else {
+                            Label(creation == nil ? "Mix Me a Drink" : "Shake Up Another",
+                                  systemImage: "apple.intelligence")
+                        }
+                    }
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        Capsule().fill(LinearGradient(
+                            colors: [.purple, .pink],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ))
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(isMixing || (selectedMoods.isEmpty && request.trimmingCharacters(in: .whitespaces).isEmpty))
+                .opacity(isMixing || (selectedMoods.isEmpty && request.trimmingCharacters(in: .whitespaces).isEmpty) ? 0.45 : 1)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+            .frame(maxWidth: 440)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+
+    private func moodChip(_ mood: String) -> some View {
+        let isSelected = selectedMoods.contains(mood)
+        return Button {
+            if isSelected {
+                selectedMoods.remove(mood)
+            } else {
+                selectedMoods.insert(mood)
+            }
+        } label: {
+            Text(mood)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(isSelected ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule().fill(isSelected ? Color.purple : Color(.secondarySystemGroupedBackground))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Pantry
+
+    @MainActor
+    private func loadStations() async {
+        isLoading = true
+        loadErrorText = nil
+        do {
+            stations = try await MenuAPI.fetchLive().menu.stations
+        } catch {
+            loadErrorText = "AI Tender needs the live menu to know what's on tap.\n\(error.localizedDescription)"
+        }
+        isLoading = false
+    }
+
+    // MARK: - Generation
+
+    private var instructions: String {
+        let pantry = stations
+            .map { "\($0.id) — \($0.name) (\($0.resolvedKind.label.lowercased()))" }
+            .joined(separator: "\n")
+        return """
+        You are AI Tender, a playful robot bartender at a house party. You invent \
+        cocktail recipes the robot can pour from its stations.
+
+        Available stations (id — ingredient — dispenser):
+        \(pantry)
+
+        RULES:
+        - Use ONLY the station ids listed above, each at most once per drink.
+        - A drink has 2 to 4 ingredients whose whole-number percents total exactly 100.
+        - Favor classic, tasty flavor combinations over shock value.
+        - Unless the guest explicitly asks for a strong drink, keep liquor at or below 40 percent of the total.
+        - Drink names must be original and fun; never reuse a well-known cocktail name unless the recipe matches it.
+        - The description is exactly one playful sentence about the taste.
+        """
+    }
+
+    @MainActor
+    private func mix() async {
+        let wants = (Array(selectedMoods) + [request.trimmingCharacters(in: .whitespaces)])
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+
+        var prompt = "The guest wants: \(wants). Invent one drink for them."
+        if creation != nil {
+            prompt += " Make it clearly different from your previous suggestions."
+        }
+
+        isMixing = true
+        mixErrorText = nil
+        defer { isMixing = false }
+        do {
+            let activeSession = session ?? LanguageModelSession(instructions: instructions)
+            session = activeSession
+            let generated = try await activeSession.respond(to: prompt, generating: AIGeneratedDrink.self).content
+            guard let drink = drink(from: generated) else {
+                mixErrorText = "That idea didn't map to the robot's stations. Try again!"
+                return
+            }
+            creation = drink
+            showCreation = true
+        } catch {
+            mixErrorText = error.localizedDescription
+        }
+    }
+
+    /// Maps the model's output onto the pantry: drops unknown stations, merges
+    /// duplicates, clamps and re-normalizes percents so they sum to exactly
+    /// 100 — the model's arithmetic is never trusted.
+    private func drink(from generated: AIGeneratedDrink) -> Drink? {
+        let names = Dictionary(uniqueKeysWithValues: stations.map { ($0.id, $0.name) })
+
+        var merged: [Int: Double] = [:]
+        var order: [Int] = []
+        for item in generated.ingredients {
+            guard names[item.stationId] != nil, item.percent > 0 else { continue }
+            if merged[item.stationId] == nil { order.append(item.stationId) }
+            merged[item.stationId, default: 0] += Double(item.percent)
+        }
+        guard !order.isEmpty else { return nil }
+
+        var ingredients = order.map { stationId in
+            Ingredient(name: names[stationId] ?? "Station \(stationId)",
+                       stationId: stationId,
+                       percent: merged[stationId] ?? 0)
+        }
+
+        let total = ingredients.reduce(0) { $0 + $1.percent }
+        guard total > 0 else { return nil }
+        for index in ingredients.indices {
+            ingredients[index].percent = (ingredients[index].percent * 100 / total).rounded()
+        }
+        // Pin rounding drift on the largest pour
+        let residual = 100 - ingredients.reduce(0) { $0 + $1.percent }
+        if residual != 0,
+           let target = ingredients.indices.max(by: { ingredients[$0].percent < ingredients[$1].percent }) {
+            ingredients[target].percent += residual
+        }
+
+        let name = generated.name.trimmingCharacters(in: .whitespaces)
+        return Drink(name: name.isEmpty ? "AI Special" : name,
+                     description: generated.description.trimmingCharacters(in: .whitespaces),
+                     totalQty: 300,
+                     ingredients: ingredients,
+                     aiAssisted: true)
+    }
+}
+
+#Preview {
+    AITenderView { _ in }
+        .environmentObject(RemoteEngine(targetPeripheralUUIDString: "4ac8a682-9736-4e5d-932b-e9b31405049c"))
+}
