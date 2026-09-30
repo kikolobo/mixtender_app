@@ -9,7 +9,7 @@ struct DrinkDetailView: View {
     // "Make It Your Own": save a modified mix as a new drink on the menu
     let onDrinkAdded: ([Drink]) -> Void
     private let originalPercents: [Double]
-    @State private var showNameAlert = false
+    @State private var showCreationSheet = false
     @State private var newDrinkName = ""
     @State private var newDrinkAuthor = ""
     @State private var creationMessage: String?
@@ -93,7 +93,7 @@ struct DrinkDetailView: View {
                     Button {
                         newDrinkName = ""
                         newDrinkAuthor = ""
-                        showNameAlert = true
+                        showCreationSheet = true
                     } label: {
                         Image(systemName: "sparkles")
                             .foregroundStyle(.purple)
@@ -106,15 +106,15 @@ struct DrinkDetailView: View {
         .navigationDestination(isPresented: $showChecklist) {
             ProcessView(drink: drink)
         }
-        .alert("Make It Your Own", isPresented: $showNameAlert) {
-            TextField("Name your drink", text: $newDrinkName)
-            TextField("Your name (optional)", text: $newDrinkAuthor)
-            Button("Save to Menu") {
+        .sheet(isPresented: $showCreationSheet) {
+            MakeItYourOwnSheet(baseName: drink.name,
+                               weights: weights,
+                               colors: ingredientColors,
+                               totalQty: drink.totalQty,
+                               name: $newDrinkName,
+                               author: $newDrinkAuthor) {
                 Task { await saveCreation() }
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Saves your current mix as a new drink on the menu.")
         }
         .alert("Menu", isPresented: creationMessagePresented) {
             Button("OK", role: .cancel) {}
@@ -262,6 +262,129 @@ struct DrinkDetailView: View {
 
         // Round weights to nearest integer
         weights = weights.map { round($0) }
+    }
+}
+
+// Playful save dialog for "Make It Your Own", in the same visual language as
+// the serving view: gradient sparkles badge, the mix being saved, bubbles.
+struct MakeItYourOwnSheet: View {
+    let baseName: String
+    let weights: [Double]
+    let colors: [Color]
+    let totalQty: Int
+    @Binding var name: String
+    @Binding var author: String
+    let onSave: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespaces)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            colors: [.purple, .pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .shadow(color: .pink.opacity(0.35), radius: 10, y: 4)
+                    Image(systemName: "sparkles")
+                        .font(.title)
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 64, height: 64)
+                .padding(.top, 26)
+
+                VStack(spacing: 4) {
+                    Text("Make It Your Own")
+                        .font(.title2.bold())
+                    Text("Your remix of \(baseName), saved to the menu for everyone to enjoy.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                MixProportionCard(weights: weights, colors: colors, totalQty: totalQty)
+
+                VStack(spacing: 12) {
+                    CreationField(icon: "wineglass.fill",
+                                  tint: .purple,
+                                  placeholder: "Name your drink",
+                                  text: $name)
+                    CreationField(icon: "person.fill",
+                                  tint: .pink,
+                                  placeholder: "Your name (optional)",
+                                  text: $author)
+                }
+
+                Button {
+                    dismiss()
+                    onSave()
+                } label: {
+                    Label("Save to Menu", systemImage: "sparkles")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            Capsule().fill(LinearGradient(
+                                colors: [.purple, .pink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ))
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(trimmedName.isEmpty)
+                .opacity(trimmedName.isEmpty ? 0.45 : 1)
+                .animation(.easeOut(duration: 0.15), value: trimmedName.isEmpty)
+
+                Button("Cancel") {
+                    dismiss()
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 12)
+            }
+            .padding(.horizontal, 24)
+            .frame(maxWidth: 440)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Color(.systemGroupedBackground))
+        // Typed names must never be lost to a stray swipe; the buttons are
+        // the only way out
+        .interactiveDismissDisabled()
+        .presentationDragIndicator(.hidden)
+        .presentationDetents([.height(600), .large])
+    }
+}
+
+// Rounded input row matching the ingredient cards
+struct CreationField: View {
+    let icon: String
+    let tint: Color
+    let placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(tint)
+                .frame(width: 24)
+            TextField(placeholder, text: $text)
+                .autocorrectionDisabled()
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+        )
     }
 }
 

@@ -7,8 +7,7 @@ struct DrinkMenuView: View {
     @State private var selectedDrink: Drink?
     @State private var showMenuEditor = false
     @State private var showPasscodePrompt = false
-    @State private var passcodeInput = ""
-    @State private var showWrongPasscode = false
+    @State private var passcodeAccepted = false
     @Namespace private var zoomNamespace
 
     // Accent colors cycled through the drink cards
@@ -57,7 +56,6 @@ struct DrinkMenuView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
-                        passcodeInput = ""
                         showPasscodePrompt = true
                     }) {
                         Image(systemName: "square.and.pencil").foregroundColor(.primary)
@@ -81,19 +79,17 @@ struct DrinkMenuView: View {
                     self.drinks = savedDrinks
                 }
             }
-            .alert("Editor Passcode", isPresented: $showPasscodePrompt) {
-                SecureField("Passcode", text: $passcodeInput)
-                Button("Unlock") {
-                    if passcodeInput == MenuAPI.editorPasscode {
-                        showMenuEditor = true
-                    } else {
-                        showWrongPasscode = true
-                    }
+            // Open the editor from onDismiss, not from the success callback:
+            // presenting one sheet while another is mid-dismissal gets dropped
+            .sheet(isPresented: $showPasscodePrompt, onDismiss: {
+                if passcodeAccepted {
+                    passcodeAccepted = false
+                    showMenuEditor = true
                 }
-                Button("Cancel", role: .cancel) {}
-            }
-            .alert("Wrong Passcode", isPresented: $showWrongPasscode) {
-                Button("OK", role: .cancel) {}
+            }) {
+                PasscodeSheet {
+                    passcodeAccepted = true
+                }
             }
         }
         .sheet(item: $selectedDrink) { drink in
@@ -198,12 +194,174 @@ private struct DrinkSheetSizing: PresentationSizing {
     }
 }
 
+// 4-digit numeric keypad gating the menu editor, in the app's visual
+// language. Wrong codes shake and clear; the right code unlocks immediately.
+struct PasscodeSheet: View {
+    let onUnlock: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var digits = ""
+    @State private var failedAttempts = 0
+    @State private var unlocked = false
+
+    private static let keypadRows: [[String]] = [
+        ["1", "2", "3"],
+        ["4", "5", "6"],
+        ["7", "8", "9"],
+        ["", "0", "⌫"]
+    ]
+
+    var body: some View {
+        VStack(spacing: 22) {
+            HStack {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .foregroundStyle(.primary)
+                }
+                .accessibilityLabel("Close")
+                Spacer()
+            }
+            .padding(.top, 18)
+
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(
+                        colors: [.purple, .pink],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .shadow(color: .pink.opacity(0.35), radius: 10, y: 4)
+                Image(systemName: unlocked ? "lock.open.fill" : "lock.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 56, height: 56)
+
+            VStack(spacing: 4) {
+                Text("Editor Passcode")
+                    .font(.title3.bold())
+                Text("Enter the 4-digit code")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 16) {
+                ForEach(0..<4, id: \.self) { index in
+                    Circle()
+                        .fill(index < digits.count ? Color.purple : Color(.tertiarySystemGroupedBackground))
+                        .frame(width: 14, height: 14)
+                }
+            }
+            .modifier(PasscodeShake(animatableData: CGFloat(failedAttempts)))
+
+            VStack(spacing: 12) {
+                ForEach(Self.keypadRows, id: \.self) { row in
+                    HStack(spacing: 24) {
+                        ForEach(row, id: \.self) { key in
+                            keypadButton(key)
+                        }
+                    }
+                }
+            }
+            .padding(.bottom, 24)
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: 360)
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemGroupedBackground))
+        .sensoryFeedback(.error, trigger: failedAttempts)
+        .sensoryFeedback(.success, trigger: unlocked)
+        .interactiveDismissDisabled()
+        .presentationDragIndicator(.hidden)
+        .presentationDetents([.height(620)])
+    }
+
+    @ViewBuilder
+    private func keypadButton(_ key: String) -> some View {
+        if key.isEmpty {
+            Color.clear.frame(width: 72, height: 72)
+        } else {
+            Button {
+                tap(key)
+            } label: {
+                Group {
+                    if key == "⌫" {
+                        Image(systemName: "delete.left")
+                            .font(.title3)
+                    } else {
+                        Text(key)
+                            .font(.title2.weight(.medium))
+                            .monospacedDigit()
+                    }
+                }
+                .foregroundStyle(.primary)
+                .frame(width: 72, height: 72)
+                .background(
+                    Circle()
+                        .fill(Color(.secondarySystemGroupedBackground))
+                        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func tap(_ key: String) {
+        guard !unlocked else { return }
+        if key == "⌫" {
+            if !digits.isEmpty { digits.removeLast() }
+            return
+        }
+        guard digits.count < 4 else { return }
+        digits += key
+
+        guard digits.count == 4 else { return }
+        if digits == MenuAPI.editorPasscode {
+            unlocked = true
+            onUnlock()
+            // Give the open-lock icon a beat before the sheet slides away
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                dismiss()
+            }
+        } else {
+            // Let the 4th dot render before shaking and clearing
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.default) { failedAttempts += 1 }
+                digits = ""
+            }
+        }
+    }
+}
+
+// Same wiggle as the serving glass's failure shake (that one is private to
+// its file)
+private struct PasscodeShake: GeometryEffect {
+    var travel: CGFloat = 8
+    var animatableData: CGFloat
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(
+            CGAffineTransform(translationX: travel * sin(animatableData * .pi * 6), y: 0)
+        )
+    }
+}
+
 struct DrinkCard: View {
     let drink: Drink
     let accent: Color
 
     private var ingredientSummary: String {
         drink.ingredients.map { $0.name }.joined(separator: " · ")
+    }
+
+    // Factory recipes are the house defaults; a byline only means something
+    // for drinks people created themselves
+    private var displayAuthor: String? {
+        guard let author = drink.author, !author.isEmpty,
+              author.caseInsensitiveCompare("Factory") != .orderedSame else { return nil }
+        return author
     }
 
     var body: some View {
@@ -234,6 +392,12 @@ struct DrinkCard: View {
                 if !ingredientSummary.isEmpty {
                     Text(ingredientSummary)
                         .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+                if let displayAuthor {
+                    Label("By \(displayAuthor)", systemImage: "person.fill")
+                        .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
