@@ -143,6 +143,23 @@ struct MenuEditorView: View {
                     Label("Add Drink", systemImage: "plus.circle.fill")
                 }
             }
+
+            Section {
+                NavigationLink {
+                    StationEditorView(menu: menu)
+                } label: {
+                    HStack {
+                        Label("Stations", systemImage: "drop.fill")
+                        Spacer()
+                        Text("\(menu.wrappedValue.stations.count)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Robot")
+            } footer: {
+                Text("Configure what the robot pours at each station.")
+            }
         }
     }
 
@@ -238,6 +255,139 @@ struct MenuEditorView: View {
         } catch {
             alertMessage = error.localizedDescription
         }
+    }
+}
+
+// Station configurator: stations are the robot's physical dispensers, so
+// there is no add or delete — only rename, and reorder for when a liquor
+// physically moves to a different dispenser. Reordering keeps the id sequence
+// pinned to the positions and remaps every recipe to follow its liquor, after
+// an explicit confirmation of what will change. Edits flow into the editor's
+// DrinkMenu via the binding and publish with its Save.
+struct StationEditorView: View {
+    @Binding var menu: DrinkMenu
+
+    @State private var pendingMove: PendingStationMove?
+
+    var body: some View {
+        List {
+            Section {
+                ForEach($menu.stations) { $station in
+                    stationRow($station)
+                }
+                .onMove { source, destination in
+                    // Stage the move behind a confirmation instead of applying
+                    // it: silently renumbering recipes would be too surprising
+                    pendingMove = PendingStationMove(stations: menu.stations,
+                                                     source: source,
+                                                     destination: destination)
+                }
+            } footer: {
+                Text("What the robot pours at each station. Tap the icon to switch between gravity valve (\(Image(systemName: StationKind.valve.icon))) and pump (\(Image(systemName: StationKind.pump.icon))). Tap Edit and drag a liquor to the station it physically moved to — every recipe updates to follow it.")
+            }
+        }
+        .navigationTitle("Stations")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                EditButton()
+            }
+        }
+        .alert("Move \(pendingMove?.movedName ?? "Station")?",
+               isPresented: pendingMovePresented,
+               presenting: pendingMove) { _ in
+            Button("Move") {
+                // Clear the presentation state first and apply on the next
+                // main-queue turn: mutating the menu while the alert is still
+                // dismissing makes SwiftUI re-present it (it re-reads a stale
+                // isPresented mid-rebuild), which demanded repeated taps
+                guard let move = pendingMove else { return }
+                pendingMove = nil
+                DispatchQueue.main.async { apply(move) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { move in
+            Text(move.summary)
+        }
+    }
+
+    private func stationRow(_ station: Binding<Station>) -> some View {
+        HStack(spacing: 12) {
+            Text("\(station.wrappedValue.id)")
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(Color(.tertiarySystemGroupedBackground)))
+            TextField("Station name", text: station.name)
+            Button {
+                station.wrappedValue.kind = station.wrappedValue.resolvedKind == .valve ? .pump : .valve
+            } label: {
+                Image(systemName: station.wrappedValue.resolvedKind.icon)
+                    .foregroundStyle(station.wrappedValue.resolvedKind == .valve ? .teal : .orange)
+                    .frame(width: 28)
+            }
+            // Borderless so the tap doesn't trigger on the whole row
+            .buttonStyle(.borderless)
+            .accessibilityLabel(station.wrappedValue.resolvedKind.label)
+        }
+    }
+
+    private var pendingMovePresented: Binding<Bool> {
+        Binding(
+            get: { pendingMove != nil },
+            set: { if !$0 { pendingMove = nil } }
+        )
+    }
+
+    /// Reassigns the fixed id sequence to the reordered stations and rewrites
+    /// every recipe ingredient so it keeps pouring the same liquor.
+    private func apply(_ move: PendingStationMove) {
+        menu.stations = move.reordered
+        for drinkIndex in menu.drinks.indices {
+            for ingredientIndex in menu.drinks[drinkIndex].ingredients.indices {
+                let oldId = menu.drinks[drinkIndex].ingredients[ingredientIndex].stationId
+                if let newId = move.idMapping[oldId] {
+                    menu.drinks[drinkIndex].ingredients[ingredientIndex].stationId = newId
+                }
+            }
+        }
+    }
+}
+
+/// A staged station drag: the reordered array with ids re-pinned to their
+/// positions, the old→new id mapping for recipes, and a human summary of both.
+struct PendingStationMove {
+    let reordered: [Station]
+    let idMapping: [Int: Int]
+    let movedName: String
+    let summary: String
+
+    init(stations: [Station], source: IndexSet, destination: Int) {
+        movedName = source.first.map { stations[$0].name } ?? "Station"
+
+        // The id sequence and hardware kind stay pinned to the physical
+        // positions; only the liquor names travel with the drag
+        let positionIds = stations.map(\.id)
+        let positionKinds = stations.map(\.kind)
+        var moved = stations
+        moved.move(fromOffsets: source, toOffset: destination)
+
+        var mapping: [Int: Int] = [:]
+        var lines: [String] = []
+        for (position, station) in moved.enumerated() {
+            mapping[station.id] = positionIds[position]
+            if station.id != positionIds[position] {
+                lines.append("\(station.name): station \(station.id) → \(positionIds[position])")
+            }
+            moved[position].id = positionIds[position]
+            moved[position].kind = positionKinds[position]
+        }
+
+        reordered = moved
+        idMapping = mapping
+        summary = lines.joined(separator: "\n")
+            + "\n\nAll recipes will be updated so every drink keeps pouring the same liquor."
     }
 }
 

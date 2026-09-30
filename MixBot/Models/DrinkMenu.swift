@@ -18,9 +18,35 @@ struct DrinkMenu: Codable, Equatable {
     var drinks: [MenuDrink]
 }
 
+// Dispenser hardware behind a station: bottles on gravity valves vs. liquids
+// drawn by a pump. Display-only for now — the robot firmware keys off the
+// station id, not this.
+enum StationKind: String, Codable, CaseIterable {
+    case valve
+    case pump
+
+    var label: String {
+        switch self {
+        case .valve: return "Gravity Valve"
+        case .pump: return "Pump"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .valve: return "spigot.fill"
+        case .pump: return "bolt.fill"
+        }
+    }
+}
+
 struct Station: Codable, Identifiable, Equatable {
     var id: Int
     var name: String
+    // Omitted by older menu files; treat those stations as gravity valves
+    var kind: StationKind? = nil
+
+    var resolvedKind: StationKind { kind ?? .valve }
 }
 
 struct MenuDrink: Codable, Identifiable, Equatable {

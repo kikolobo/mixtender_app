@@ -3,39 +3,48 @@
     "stations": [
         {
             "id": 1,
-            "name": "Tequila"
+            "name": "Tequila",
+            "kind": "valve"
         },
         {
             "id": 2,
-            "name": "Bacardi"
+            "name": "Bacardi",
+            "kind": "valve"
         },
         {
             "id": 3,
-            "name": "Gin"
+            "name": "Gin",
+            "kind": "valve"
         },
         {
             "id": 4,
-            "name": "Whiskey"
+            "name": "Whiskey",
+            "kind": "valve"
         },
         {
             "id": 5,
-            "name": "Coffee"
+            "name": "Coffee",
+            "kind": "valve"
         },
         {
             "id": 6,
-            "name": "Licor 43"
+            "name": "Licor 43",
+            "kind": "valve"
         },
         {
             "id": 7,
-            "name": "Coca Light"
+            "name": "Coca Light",
+            "kind": "pump"
         },
         {
             "id": 8,
-            "name": "Mineral Water"
+            "name": "Mineral Water",
+            "kind": "pump"
         },
         {
             "id": 9,
-            "name": "Tonic"
+            "name": "Tonic",
+            "kind": "pump"
         }
     ],
     "drinks": [

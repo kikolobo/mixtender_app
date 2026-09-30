@@ -183,7 +183,8 @@ struct IngredientEditorRow: View {
         VStack(alignment: .leading, spacing: 6) {
             Picker("Station", selection: $ingredient.stationId) {
                 ForEach(stations) { station in
-                    Text(station.name).tag(station.id)
+                    Label(station.name, systemImage: station.resolvedKind.icon)
+                        .tag(station.id)
                 }
             }
 
