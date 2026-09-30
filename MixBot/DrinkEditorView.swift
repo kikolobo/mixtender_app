@@ -21,6 +21,7 @@ struct DrinkEditorView: View {
             Section("Drink") {
                 TextField("Name", text: $drink.name)
                 TextField("Description", text: $drink.description, axis: .vertical)
+                TextField("Author (optional)", text: authorBinding)
                 HStack {
                     Text("Total Quantity")
                     Spacer()
@@ -61,6 +62,17 @@ struct DrinkEditorView: View {
 
     private var percentSum: Double {
         drink.ingredients.reduce(0) { $0 + $1.percent }
+    }
+
+    // The wire format omits author when empty; the UI edits it as plain text
+    private var authorBinding: Binding<String> {
+        Binding(
+            get: { drink.author ?? "" },
+            set: { newValue in
+                let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                drink.author = trimmed.isEmpty ? nil : newValue
+            }
+        )
     }
 
     @ViewBuilder

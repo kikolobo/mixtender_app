@@ -30,12 +30,15 @@ struct MenuDrink: Codable, Identifiable, Equatable {
     var description: String
     var totalQty: Int
     var ingredients: [MenuIngredient]
+    // Who created the recipe; omitted from the wire format when absent
+    var author: String? = nil
 
     enum CodingKeys: CodingKey {
         case name
         case description
         case totalQty
         case ingredients
+        case author
     }
 }
 
@@ -144,7 +147,8 @@ extension DrinkMenu {
                       Ingredient(name: ingredient.label ?? stationNames[ingredient.stationId] ?? "Station \(ingredient.stationId)",
                                  stationId: ingredient.stationId,
                                  percent: ingredient.percent)
-                  })
+                  },
+                  author: drink.author)
         }
     }
 }

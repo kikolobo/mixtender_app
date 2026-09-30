@@ -11,6 +11,7 @@ struct DrinkDetailView: View {
     private let originalPercents: [Double]
     @State private var showNameAlert = false
     @State private var newDrinkName = ""
+    @State private var newDrinkAuthor = ""
     @State private var creationMessage: String?
     @State private var isSavingCreation = false
 
@@ -33,6 +34,13 @@ struct DrinkDetailView: View {
                     Text(drink.description)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if let author = drink.author, !author.isEmpty {
+                    Label("By \(author)", systemImage: "person.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
@@ -84,6 +92,7 @@ struct DrinkDetailView: View {
                 if isModified {
                     Button {
                         newDrinkName = ""
+                        newDrinkAuthor = ""
                         showNameAlert = true
                     } label: {
                         Image(systemName: "sparkles")
@@ -99,6 +108,7 @@ struct DrinkDetailView: View {
         }
         .alert("Make It Your Own", isPresented: $showNameAlert) {
             TextField("Name your drink", text: $newDrinkName)
+            TextField("Your name (optional)", text: $newDrinkAuthor)
             Button("Save to Menu") {
                 Task { await saveCreation() }
             }
@@ -157,10 +167,12 @@ struct DrinkDetailView: View {
                                label: ingredient.name == stationNames[ingredient.stationId] ? nil : ingredient.name)
             }
 
+            let author = newDrinkAuthor.trimmingCharacters(in: .whitespaces)
             menu.drinks.append(MenuDrink(name: name,
                                          description: "Based on \(drink.name)",
                                          totalQty: drink.totalQty,
-                                         ingredients: ingredients))
+                                         ingredients: ingredients,
+                                         author: author.isEmpty ? nil : author))
 
             _ = try await MenuAPI.save(menu, ifMatch: updatedAt)
             if let drinks = menu.resolvedDrinks() {
