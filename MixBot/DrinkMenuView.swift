@@ -143,51 +143,29 @@ struct DrinkMenuView: View {
     }
 }
 
-// Zoom transition helpers: the card-to-sheet zoom needs iOS 18; on iOS 17
-// these are no-ops and the sheet uses the standard slide-up presentation.
+// Presentation helpers shared by the drink and editor sheets.
 extension View {
-    @ViewBuilder
     func zoomTransitionSource(id: some Hashable, in namespace: Namespace.ID) -> some View {
-        if #available(iOS 18.0, *) {
-            self.matchedTransitionSource(id: id, in: namespace)
-        } else {
-            self
-        }
+        self.matchedTransitionSource(id: id, in: namespace)
     }
 
-    @ViewBuilder
     func zoomTransition(sourceID: some Hashable, in namespace: Namespace.ID) -> some View {
-        if #available(iOS 18.0, *) {
-            self.navigationTransition(.zoom(sourceID: sourceID, in: namespace))
-        } else {
-            self
-        }
+        self.navigationTransition(.zoom(sourceID: sourceID, in: namespace))
     }
 
     // Sized between .form (too cramped) and .page (covers almost everything)
     // on iPad; no effect on iPhone, where sheets are always full-size.
-    @ViewBuilder
     func drinkSheetSizing() -> some View {
-        if #available(iOS 18.0, *) {
-            self.presentationSizing(DrinkSheetSizing())
-        } else {
-            self
-        }
+        self.presentationSizing(DrinkSheetSizing())
     }
 
     // The editor holds a drink list plus nested forms, so on iPad it gets the
     // largest standard sheet; no effect on iPhone.
-    @ViewBuilder
     func menuEditorSheetSizing() -> some View {
-        if #available(iOS 18.0, *) {
-            self.presentationSizing(.page)
-        } else {
-            self
-        }
+        self.presentationSizing(.page)
     }
 }
 
-@available(iOS 18.0, *)
 private struct DrinkSheetSizing: PresentationSizing {
     func proposedSize(for root: PresentationSizingRoot, context: PresentationSizingContext) -> ProposedViewSize {
         ProposedViewSize(width: 680, height: 800)
