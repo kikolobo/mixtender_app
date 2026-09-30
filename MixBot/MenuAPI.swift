@@ -34,6 +34,10 @@ struct MenuAPI {
     static let endpoint = URL(string: "https://mixbot-api.kixlobo.workers.dev/menu")!
     private static let token = "Q1V9H/0fvtF/X4jsRGxK4QeJzwpBgjqq"
 
+    // Gates the in-app menu editor UI only (hardcoded for now); the real
+    // write protection is the server's bearer token
+    static let editorPasscode = "charronegro"
+
     /// Fetches the live menu plus its version token (X-Updated-At), which a
     /// later save must present as If-Match.
     static func fetchLive() async throws -> (menu: DrinkMenu, updatedAt: String) {

@@ -6,14 +6,24 @@ struct DrinkDetailView: View {
     @State private var showChecklist = false // For navigation trigger
     @EnvironmentObject var remoteEngine: RemoteEngine
 
+    // "Make It Your Own": save a modified mix as a new drink on the menu
+    let onDrinkAdded: ([Drink]) -> Void
+    private let originalPercents: [Double]
+    @State private var showNameAlert = false
+    @State private var newDrinkName = ""
+    @State private var creationMessage: String?
+    @State private var isSavingCreation = false
+
     // Same palette as the menu, cycled per ingredient
     private let accents: [Color] = [.purple, .pink, .orange, .teal, .indigo, .mint]
 
-    init(drink: Drink) {
+    init(drink: Drink, onDrinkAdded: @escaping ([Drink]) -> Void = { _ in }) {
         self.drink = drink
-        let count = drink.ingredients.count
-        let initialWeight = count > 0 ? 100.0 / Double(count) : 0
-        self._weights = State(initialValue: Array(repeating: initialWeight, count: count))
+        self.onDrinkAdded = onDrinkAdded
+        self.originalPercents = drink.ingredients.map(\.percent)
+        // Seed from the recipe directly so the mix never flashes an
+        // equal-split state before onAppear corrects it
+        self._weights = State(initialValue: drink.ingredients.map(\.percent))
     }
 
     var body: some View {
@@ -69,8 +79,98 @@ struct DrinkDetailView: View {
         }
         .navigationTitle(drink.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if isModified {
+                    Button {
+                        newDrinkName = ""
+                        showNameAlert = true
+                    } label: {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(.purple)
+                    }
+                    .disabled(isSavingCreation)
+                    .accessibilityLabel("Make It Your Own")
+                }
+            }
+        }
         .navigationDestination(isPresented: $showChecklist) {
             ProcessView(drink: drink)
+        }
+        .alert("Make It Your Own", isPresented: $showNameAlert) {
+            TextField("Name your drink", text: $newDrinkName)
+            Button("Save to Menu") {
+                Task { await saveCreation() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Saves your current mix as a new drink on the menu.")
+        }
+        .alert("Menu", isPresented: creationMessagePresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(creationMessage ?? "")
+        }
+    }
+
+    private var isModified: Bool {
+        weights != originalPercents
+    }
+
+    private var creationMessagePresented: Binding<Bool> {
+        Binding(
+            get: { creationMessage != nil },
+            set: { if !$0 { creationMessage = nil } }
+        )
+    }
+
+    /// Appends the current mix to the live menu as a new drink. Add-only by
+    /// design: changing or removing drinks requires the passcode-gated editor.
+    @MainActor
+    private func saveCreation() async {
+        let name = newDrinkName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else {
+            creationMessage = "Please give your drink a name."
+            return
+        }
+
+        isSavingCreation = true
+        defer { isSavingCreation = false }
+        do {
+            var (menu, updatedAt) = try await MenuAPI.fetchLive()
+            guard !menu.drinks.contains(where: { $0.name == name }) else {
+                creationMessage = "A drink named '\(name)' already exists. Pick another name."
+                return
+            }
+
+            // Round the mix and pin the sum to exactly 100 on the largest pour
+            var percents = weights.map { $0.rounded() }
+            if let maxIndex = percents.indices.max(by: { percents[$0] < percents[$1] }) {
+                percents[maxIndex] += 100 - percents.reduce(0, +)
+            }
+
+            // Keep a label only where the serving name differs from the station name
+            let stationNames = Dictionary(uniqueKeysWithValues: menu.stations.map { ($0.id, $0.name) })
+            let ingredients = zip(drink.ingredients, percents).map { ingredient, percent in
+                MenuIngredient(stationId: ingredient.stationId,
+                               percent: percent,
+                               label: ingredient.name == stationNames[ingredient.stationId] ? nil : ingredient.name)
+            }
+
+            menu.drinks.append(MenuDrink(name: name,
+                                         description: "Based on \(drink.name)",
+                                         totalQty: drink.totalQty,
+                                         ingredients: ingredients))
+
+            _ = try await MenuAPI.save(menu, ifMatch: updatedAt)
+            if let drinks = menu.resolvedDrinks() {
+                onDrinkAdded(drinks)
+            }
+            creationMessage = "'\(name)' was added to the menu."
+        } catch MenuAPIError.conflict {
+            creationMessage = "The menu is being edited right now. Try again in a moment."
+        } catch {
+            creationMessage = error.localizedDescription
         }
     }
 

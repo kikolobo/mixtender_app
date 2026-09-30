@@ -6,6 +6,9 @@ struct DrinkMenuView: View {
     @State private var drinks: [Drink] = []
     @State private var selectedDrink: Drink?
     @State private var showMenuEditor = false
+    @State private var showPasscodePrompt = false
+    @State private var passcodeInput = ""
+    @State private var showWrongPasscode = false
     @Namespace private var zoomNamespace
 
     // Accent colors cycled through the drink cards
@@ -54,7 +57,8 @@ struct DrinkMenuView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
-                        showMenuEditor = true
+                        passcodeInput = ""
+                        showPasscodePrompt = true
                     }) {
                         Image(systemName: "square.and.pencil").foregroundColor(.primary)
                     }
@@ -77,10 +81,26 @@ struct DrinkMenuView: View {
                     self.drinks = savedDrinks
                 }
             }
+            .alert("Editor Passcode", isPresented: $showPasscodePrompt) {
+                SecureField("Passcode", text: $passcodeInput)
+                Button("Unlock") {
+                    if passcodeInput == MenuAPI.editorPasscode {
+                        showMenuEditor = true
+                    } else {
+                        showWrongPasscode = true
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .alert("Wrong Passcode", isPresented: $showWrongPasscode) {
+                Button("OK", role: .cancel) {}
+            }
         }
         .sheet(item: $selectedDrink) { drink in
             NavigationStack {
-                DrinkDetailView(drink: drink)
+                DrinkDetailView(drink: drink, onDrinkAdded: { savedDrinks in
+                    self.drinks = savedDrinks
+                })
                     // Force fresh view state per drink so a lingering
                     // presentation can never show the previous formula
                     .id(drink.id)

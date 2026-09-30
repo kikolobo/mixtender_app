@@ -8,6 +8,9 @@ import SwiftUI
 // Form for a single drink inside the menu editor. Edits flow straight into
 // the editor's DrinkMenu via bindings; nothing is published until the editor's
 // Save button PUTs the whole menu.
+//
+// Percent sliders auto-balance like the serving view: moving one slider
+// redistributes the difference across the others so the total stays at 100.
 
 struct DrinkEditorView: View {
     @Binding var drink: MenuDrink
@@ -32,10 +35,13 @@ struct DrinkEditorView: View {
 
             Section {
                 ForEach($drink.ingredients) { $ingredient in
-                    IngredientEditorRow(ingredient: $ingredient, stations: stations)
+                    IngredientEditorRow(ingredient: $ingredient,
+                                        stations: stations,
+                                        percent: balancedPercent(for: ingredient.id))
                 }
                 .onDelete { offsets in
                     drink.ingredients.remove(atOffsets: offsets)
+                    rebalanceAfterRemoval()
                 }
 
                 Button {
@@ -80,11 +86,86 @@ struct DrinkEditorView: View {
         let remaining = max(0, min(100, 100 - percentSum))
         drink.ingredients.append(MenuIngredient(stationId: station.id, percent: remaining))
     }
+
+    /// Binding for one ingredient's slider that keeps the total pinned at 100
+    /// by redistributing the change across the other ingredients.
+    private func balancedPercent(for id: UUID) -> Binding<Double> {
+        Binding(
+            get: { drink.ingredients.first { $0.id == id }?.percent ?? 0 },
+            set: { newValue in
+                guard let index = drink.ingredients.firstIndex(where: { $0.id == id }) else { return }
+                let delta = newValue - drink.ingredients[index].percent
+                drink.ingredients[index].percent = newValue
+                adjustOthers(except: index, by: delta)
+            }
+        )
+    }
+
+    // Same redistribution approach as the serving view's sliders, plus a
+    // residual fix so rounding can never leave the sum off 100 (the menu
+    // would fail validation on save otherwise)
+    private func adjustOthers(except excludedIndex: Int, by delta: Double) {
+        var percents = drink.ingredients.map(\.percent)
+
+        guard percents.count > 1 else {
+            drink.ingredients[excludedIndex].percent = 100
+            return
+        }
+
+        let otherIndexes = percents.indices.filter { $0 != excludedIndex }
+        let sumOfOthers = otherIndexes.reduce(0) { $0 + percents[$1] }
+
+        // Redistribute the delta among the other sliders proportionally
+        if sumOfOthers > 0 {
+            for i in otherIndexes {
+                percents[i] = max(0, percents[i] - (percents[i] / sumOfOthers) * delta)
+            }
+        } else {
+            for i in otherIndexes {
+                percents[i] = max(0, percents[i] - delta / Double(percents.count - 1))
+            }
+        }
+
+        percents[excludedIndex] = min(max(percents[excludedIndex], 0), 100)
+        percents = percents.map { $0.rounded() }
+
+        // Pin the sum to exactly 100 on the largest other ingredient
+        let residual = 100 - percents.reduce(0, +)
+        if residual != 0, let target = otherIndexes.max(by: { percents[$0] < percents[$1] }) {
+            percents[target] = min(max(percents[target] + residual, 0), 100)
+        }
+
+        for (i, value) in percents.enumerated() {
+            drink.ingredients[i].percent = value
+        }
+    }
+
+    /// After deleting an ingredient, scale the remaining ones back to 100.
+    private func rebalanceAfterRemoval() {
+        guard !drink.ingredients.isEmpty else { return }
+        let sum = percentSum
+        if sum > 0 {
+            for i in drink.ingredients.indices {
+                drink.ingredients[i].percent = (drink.ingredients[i].percent * 100 / sum).rounded()
+            }
+        } else {
+            let share = (100.0 / Double(drink.ingredients.count)).rounded()
+            for i in drink.ingredients.indices {
+                drink.ingredients[i].percent = share
+            }
+        }
+        // Pin rounding drift on the largest ingredient
+        let residual = 100 - percentSum
+        if residual != 0, let target = drink.ingredients.indices.max(by: { drink.ingredients[$0].percent < drink.ingredients[$1].percent }) {
+            drink.ingredients[target].percent += residual
+        }
+    }
 }
 
 struct IngredientEditorRow: View {
     @Binding var ingredient: MenuIngredient
     let stations: [Station]
+    let percent: Binding<Double>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -95,7 +176,7 @@ struct IngredientEditorRow: View {
             }
 
             HStack(spacing: 10) {
-                Slider(value: $ingredient.percent, in: 0...100, step: 1)
+                Slider(value: percent, in: 0...100, step: 1)
                 Text("\(Int(ingredient.percent))%")
                     .monospacedDigit()
                     .frame(width: 48, alignment: .trailing)
