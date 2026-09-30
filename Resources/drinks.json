@@ -4,47 +4,70 @@
         {
             "id": 1,
             "name": "Tequila",
-            "kind": "valve"
+            "kind": "valve",
+            "role": "spirit",
+            "abv": 38,
+            "notes": "agave, earthy, a little peppery; classic with citrus, soda or cola"
         },
         {
             "id": 2,
             "name": "Bacardi",
-            "kind": "valve"
+            "kind": "valve",
+            "role": "spirit",
+            "abv": 37.5,
+            "notes": "white rum: light, clean, faintly sweet; loves cola, soda and tropical flavors"
         },
         {
             "id": 3,
             "name": "Gin",
-            "kind": "valve"
+            "kind": "valve",
+            "role": "spirit",
+            "abv": 40,
+            "notes": "crisp, juniper, botanical; refreshing with tonic or soda water"
         },
         {
             "id": 4,
             "name": "Whiskey",
-            "kind": "valve"
+            "kind": "valve",
+            "role": "spirit",
+            "abv": 40,
+            "notes": "oaky, warm, caramel; suits stronger, slower drinks and pairs with coffee"
         },
         {
             "id": 5,
             "name": "Coffee",
-            "kind": "valve"
+            "kind": "valve",
+            "role": "other",
+            "notes": "bitter, roasted; wakes you up; pairs with whiskey, Licor 43 and dessert drinks"
         },
         {
             "id": 6,
             "name": "Licor 43",
-            "kind": "valve"
+            "kind": "valve",
+            "role": "liqueur",
+            "abv": 31,
+            "notes": "sweet vanilla-citrus liqueur; dessert-like; a little goes a long way"
         },
         {
             "id": 7,
             "name": "Coca Light",
-            "kind": "pump"
+            "kind": "pump",
+            "role": "soda",
+            "notes": "sweet cola fizz with zero sugar; classic with rum, tequila or whiskey"
         },
         {
             "id": 8,
             "name": "Mineral Water",
-            "kind": "pump"
+            "kind": "pump",
+            "role": "water",
+            "notes": "neutral sparkling water; dilutes - makes drinks less sweet and less strong; refreshing"
         },
         {
             "id": 9,
             "name": "Tonic",
-            "kind": "pump"
+            "kind": "pump",
+            "role": "soda",
+            "notes": "bitter-sweet quinine fizz; refreshing; the classic gin partner"
         }
     ],
     "drinks": [

@@ -284,7 +284,7 @@ struct StationEditorView: View {
                                                      destination: destination)
                 }
             } footer: {
-                Text("What the robot pours at each station. Tap the icon to switch between gravity valve (\(Image(systemName: StationKind.valve.icon))) and pump (\(Image(systemName: StationKind.pump.icon))). Tap Edit and drag a liquor to the station it physically moved to — every recipe updates to follow it.")
+                Text("What the robot pours at each station. Tap a station to rename it or describe its taste for AI Tender (\(Image(systemName: StationKind.valve.icon)) gravity valve, \(Image(systemName: StationKind.pump.icon)) pump). Tap Edit and drag a liquor to the station it physically moved to — every recipe updates to follow it.")
             }
         }
         .navigationTitle("Stations")
@@ -313,25 +313,42 @@ struct StationEditorView: View {
     }
 
     private func stationRow(_ station: Binding<Station>) -> some View {
-        HStack(spacing: 12) {
-            Text("\(station.wrappedValue.id)")
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .frame(width: 28, height: 28)
-                .background(Circle().fill(Color(.tertiarySystemGroupedBackground)))
-            TextField("Station name", text: station.name)
-            Button {
-                station.wrappedValue.kind = station.wrappedValue.resolvedKind == .valve ? .pump : .valve
-            } label: {
-                Image(systemName: station.wrappedValue.resolvedKind.icon)
-                    .foregroundStyle(station.wrappedValue.resolvedKind == .valve ? .teal : .orange)
-                    .frame(width: 28)
+        let value = station.wrappedValue
+        return NavigationLink {
+            StationDetailView(station: station)
+        } label: {
+            HStack(spacing: 12) {
+                Text("\(value.id)")
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(Color(.tertiarySystemGroupedBackground)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(value.name.isEmpty ? "Unnamed station" : value.name)
+                        .font(.body)
+                    Text(profileSummary(for: value))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: value.resolvedKind.icon)
+                    .foregroundStyle(value.resolvedKind == .valve ? .teal : .orange)
+                    .accessibilityLabel(value.resolvedKind.label)
             }
-            // Borderless so the tap doesn't trigger on the whole row
-            .buttonStyle(.borderless)
-            .accessibilityLabel(station.wrappedValue.resolvedKind.label)
         }
+    }
+
+    private func profileSummary(for station: Station) -> String {
+        var parts = [station.resolvedRole.label]
+        if station.resolvedRole.isAlcoholic {
+            parts.append("\(Int(station.resolvedAbv.rounded()))% ABV")
+        }
+        if let notes = station.notes, !notes.isEmpty {
+            parts.append(notes)
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var pendingMovePresented: Binding<Bool> {
@@ -353,6 +370,77 @@ struct StationEditorView: View {
                 }
             }
         }
+    }
+}
+
+// Everything about one station except its position: name, hardware kind, and
+// the tasting profile AI Tender reads. Edits flow into the editor's DrinkMenu
+// via the binding and publish with its Save.
+struct StationDetailView: View {
+    @Binding var station: Station
+
+    var body: some View {
+        Form {
+            Section("Station \(station.id)") {
+                TextField("Name", text: $station.name)
+                Picker("Dispenser", selection: kindBinding) {
+                    ForEach(StationKind.allCases, id: \.self) { kind in
+                        Label(kind.label, systemImage: kind.icon).tag(kind)
+                    }
+                }
+            }
+
+            Section {
+                Picker("Type", selection: roleBinding) {
+                    ForEach(StationRole.allCases, id: \.self) { role in
+                        Text(role.label).tag(role)
+                    }
+                }
+                if station.resolvedRole.isAlcoholic {
+                    HStack {
+                        Text("Alcohol")
+                        Spacer()
+                        TextField("ABV", value: abvBinding, format: .number)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 70)
+                        Text("%")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                TextField("Tasting notes for AI Tender", text: notesBinding, axis: .vertical)
+                    .lineLimit(2...5)
+            } header: {
+                Text("Taste Profile")
+            } footer: {
+                Text("AI Tender reads these when inventing drinks. Describe flavor, effect and what it mixes well with — e.g. “bitter, roasted; wakes you up; pairs with whiskey”.")
+            }
+        }
+        .navigationTitle(station.name.isEmpty ? "Station" : station.name)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // The wire format omits these when unset; the UI edits resolved values
+    private var kindBinding: Binding<StationKind> {
+        Binding(get: { station.resolvedKind }, set: { station.kind = $0 })
+    }
+
+    private var roleBinding: Binding<StationRole> {
+        Binding(get: { station.resolvedRole }, set: { station.role = $0 })
+    }
+
+    private var abvBinding: Binding<Double> {
+        Binding(get: { station.resolvedAbv }, set: { station.abv = min(max($0, 0), 100) })
+    }
+
+    private var notesBinding: Binding<String> {
+        Binding(
+            get: { station.notes ?? "" },
+            set: { newValue in
+                let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                station.notes = trimmed.isEmpty ? nil : newValue
+            }
+        )
     }
 }
 

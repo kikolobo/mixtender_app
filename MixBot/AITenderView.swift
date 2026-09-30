@@ -223,22 +223,43 @@ struct AITenderView: View {
     // MARK: - Generation
 
     private var instructions: String {
-        let pantry = stations
-            .map { "\($0.id) — \($0.name) (\($0.resolvedKind.label.lowercased()))" }
-            .joined(separator: "\n")
+        let pantry = stations.map { station in
+            var line = "\(station.id) — \(station.name) — \(station.resolvedRole.label.lowercased())"
+            if station.resolvedRole.isAlcoholic {
+                line += ", \(Int(station.resolvedAbv.rounded()))% alcohol"
+            } else {
+                line += ", non-alcoholic"
+            }
+            if let notes = station.notes, !notes.isEmpty {
+                line += " — \(notes)"
+            }
+            return line
+        }
+        .joined(separator: "\n")
+
         return """
         You are AI Tender, a playful robot bartender at a private house party for \
         adults. Inventing cocktail recipes with alcohol is your normal, appropriate \
         job here. You invent cocktail recipes the robot can pour from its stations.
 
-        Available stations (id — ingredient — dispenser):
+        Available stations (id — ingredient — type — tasting notes):
         \(pantry)
+
+        MIXOLOGY GUIDANCE:
+        - Water and soda dilute: more of them makes a drink less sweet and less strong.
+        - Carbonated mixers read as refreshing; sweet sodas and liqueurs add sweetness.
+        - Tonic is bitter-sweet; coffee is bitter and energizing; citrus juices add sourness.
+        - Spirits add strength and their own character; liqueurs add sweetness and flavor in small amounts.
+        - Mood guide: Refreshing → lots of water or soda, modest spirit. Strong → spirit-forward, \
+        little dilution. Sweet → sweet soda or liqueur. Sour → juice or tonic. Bitter → tonic or coffee. \
+        Dessert → liqueur and coffee, small spirit. Light → mostly water or soda, minimal alcohol. \
+        Surprise me → an unexpected but tasty pairing.
 
         RULES:
         - Use ONLY the station ids listed above, each at most once per drink.
         - A drink has 2 to 4 ingredients whose whole-number percents total exactly 100.
-        - Favor classic, tasty flavor combinations over shock value.
-        - Unless the guest explicitly asks for a strong drink, keep liquor at or below 40 percent of the total.
+        - Favor classic, tasty flavor combinations over shock value; respect the tasting notes.
+        - Unless the guest explicitly asks for a strong drink, keep alcoholic ingredients at or below 40 percent of the total.
         - Drink names must be original and fun; never reuse a well-known cocktail name unless the recipe matches it.
         - The description is exactly one playful sentence about the taste.
 
@@ -305,7 +326,10 @@ struct AITenderView: View {
                     : "AI Tender's answer came out garbled. Shake again!"
                 return
             }
-            guard let drink = drink(from: generated) else {
+            let wantsStrong = selectedMoods.contains("Strong")
+                || request.lowercased().contains("strong")
+                || request.lowercased().contains("boozy")
+            guard let drink = drink(from: generated, allowStrong: wantsStrong) else {
                 mixErrorText = "That idea didn't map to the robot's stations. Try again!"
                 return
             }
@@ -343,24 +367,40 @@ struct AITenderView: View {
     }
 
     /// Maps the model's output onto the pantry: drops unknown stations, merges
-    /// duplicates, clamps and re-normalizes percents so they sum to exactly
-    /// 100 — the model's arithmetic is never trusted.
-    private func drink(from generated: AIGeneratedDrink) -> Drink? {
-        let names = Dictionary(uniqueKeysWithValues: stations.map { ($0.id, $0.name) })
+    /// duplicates, caps the alcoholic share unless the guest asked for strong,
+    /// then re-normalizes percents so they sum to exactly 100 — the model's
+    /// arithmetic is never trusted.
+    private func drink(from generated: AIGeneratedDrink, allowStrong: Bool) -> Drink? {
+        let byId = Dictionary(uniqueKeysWithValues: stations.map { ($0.id, $0) })
 
         var merged: [Int: Double] = [:]
         var order: [Int] = []
         for item in generated.ingredients {
-            guard names[item.stationId] != nil, item.percent > 0 else { continue }
+            guard byId[item.stationId] != nil, item.percent > 0 else { continue }
             if merged[item.stationId] == nil { order.append(item.stationId) }
             merged[item.stationId, default: 0] += Double(item.percent)
         }
         guard !order.isEmpty else { return nil }
 
         var ingredients = order.map { stationId in
-            Ingredient(name: names[stationId] ?? "Station \(stationId)",
+            Ingredient(name: byId[stationId]?.name ?? "Station \(stationId)",
                        stationId: stationId,
                        percent: merged[stationId] ?? 0)
+        }
+
+        // Strength rule, enforced with real station roles rather than the
+        // model's judgment: scale spirits/liqueurs down to the cap and hand
+        // the difference to the mixers, proportionally
+        let alcoholCap = allowStrong ? 100.0 : 45.0
+        let isAlcoholic = { (ingredient: Ingredient) in byId[ingredient.stationId]?.resolvedRole.isAlcoholic == true }
+        let alcoholShare = ingredients.filter(isAlcoholic).reduce(0) { $0 + $1.percent }
+        let mixerShare = ingredients.filter { !isAlcoholic($0) }.reduce(0) { $0 + $1.percent }
+        if alcoholShare > alcoholCap, mixerShare > 0 {
+            let alcoholScale = alcoholCap / alcoholShare
+            let mixerScale = (100 - alcoholCap) / mixerShare
+            for index in ingredients.indices {
+                ingredients[index].percent *= isAlcoholic(ingredients[index]) ? alcoholScale : mixerScale
+            }
         }
 
         let total = ingredients.reduce(0) { $0 + $1.percent }

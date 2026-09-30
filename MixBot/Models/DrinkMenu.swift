@@ -40,13 +40,54 @@ enum StationKind: String, Codable, CaseIterable {
     }
 }
 
+// What a station's liquid is, in bartending terms. Drives code-side rules the
+// AI can't be trusted with (e.g. total liquor share) and the AI's pantry
+// description. Optional in the wire format; missing = other.
+enum StationRole: String, Codable, CaseIterable {
+    case spirit
+    case liqueur
+    case soda
+    case water
+    case juice
+    case other
+
+    var label: String {
+        switch self {
+        case .spirit: return "Spirit"
+        case .liqueur: return "Liqueur"
+        case .soda: return "Soda / Mixer"
+        case .water: return "Water"
+        case .juice: return "Juice"
+        case .other: return "Other"
+        }
+    }
+
+    var isAlcoholic: Bool { self == .spirit || self == .liqueur }
+}
+
 struct Station: Codable, Identifiable, Equatable {
     var id: Int
     var name: String
     // Omitted by older menu files; treat those stations as gravity valves
     var kind: StationKind? = nil
+    // Tasting profile for AI Tender and strength math; all optional
+    var role: StationRole? = nil
+    var abv: Double? = nil
+    var notes: String? = nil
 
     var resolvedKind: StationKind { kind ?? .valve }
+    var resolvedRole: StationRole { role ?? .other }
+
+    /// Alcohol by volume in percent, falling back to typical values by role
+    /// so strength math works even before a station is fully described.
+    var resolvedAbv: Double {
+        if let abv { return abv }
+        switch resolvedRole {
+        case .spirit: return 40
+        case .liqueur: return 25
+        default: return 0
+        }
+    }
 }
 
 struct MenuDrink: Codable, Identifiable, Equatable {
