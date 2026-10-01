@@ -22,6 +22,9 @@ import FoundationModels
 // normalizes percents afterwards regardless, because the model can't be
 // trusted with arithmetic.
 struct AIGeneratedDrink: Decodable {
+    // Asked for first so the model commits to matching ingredients before
+    // it writes the recipe (a cheap chain-of-thought for a small model)
+    var reasoning: String?
     var name: String
     var description: String
     var ingredients: [AIGeneratedIngredient]
@@ -49,9 +52,10 @@ struct AITenderView: View {
     @State private var creation: Drink?
     @State private var showCreation = false
     @State private var session: LanguageModelSession?
+    @State private var lastRequestKey = ""
 
-    private static let moods = ["Refreshing", "Strong", "Sweet", "Sour",
-                                "Bitter", "Dessert", "Light", "Surprise me"]
+    private static let moods = ["Refreshing", "Strong", "Sweet", "Sour", "Bitter",
+                                "Dessert", "Light", "Wake Me Up", "Surprise me"]
 
     var body: some View {
         NavigationStack {
@@ -250,22 +254,115 @@ struct AITenderView: View {
         - Carbonated mixers read as refreshing; sweet sodas and liqueurs add sweetness.
         - Tonic is bitter-sweet; coffee is bitter and energizing; citrus juices add sourness.
         - Spirits add strength and their own character; liqueurs add sweetness and flavor in small amounts.
+        - Coffee pairs with liqueur (a carajillo), whiskey, rum or tequila — NEVER with gin or tonic.
+        - Gin pairs with tonic or soda water; tequila and rum pair with cola, soda or juice; whiskey with cola, coffee or on its own.
+        - Never combine two spirits unless the guest asks for strong; one spirit plus mixers is the rule.
         - Mood guide: Refreshing → lots of water or soda, modest spirit. Strong → spirit-forward, \
         little dilution. Sweet → sweet soda or liqueur. Sour → juice or tonic. Bitter → tonic or coffee. \
         Dessert → liqueur and coffee, small spirit. Light → mostly water or soda, minimal alcohol. \
-        Surprise me → an unexpected but tasty pairing.
+        Wake Me Up → coffee is the star, with a little spirit or liqueur. Surprise me → an unexpected but tasty pairing.
+        - Occasion guide: waking up, energy, tired, morning → coffee. Dancing, party, fiesta, celebrating → \
+        a fizzy, refreshing long drink: rum or tequila with cola or soda. Relaxing, night cap, after dinner → \
+        whiskey or a dessert-style drink. Hot day, thirsty → water or tonic forward.
 
         RULES:
+        - FIRST match the guest's words against the tasting notes above. Any ingredient whose notes \
+        describe what the guest asked for MUST be in the drink. Say which in "reasoning".
         - Use ONLY the station ids listed above, each at most once per drink.
         - A drink has 2 to 4 ingredients whose whole-number percents total exactly 100.
+        - Unless the guest explicitly asks for a strong drink, the drink MUST include at least one \
+        non-alcoholic ingredient (soda, water, juice or other) making up half or more, and alcoholic \
+        ingredients stay at or below 40 percent of the total.
+        - Liqueurs never exceed 25 percent of the drink.
         - Favor classic, tasty flavor combinations over shock value; respect the tasting notes.
-        - Unless the guest explicitly asks for a strong drink, keep alcoholic ingredients at or below 40 percent of the total.
         - Drink names must be original and fun; never reuse a well-known cocktail name unless the recipe matches it.
         - The description is exactly one playful sentence about the taste.
 
         OUTPUT FORMAT: respond with ONLY a JSON object, no markdown, no prose, no code fences:
-        {"name": "Drink Name", "description": "One sentence.", "ingredients": [{"stationId": 1, "percent": 30}, {"stationId": 9, "percent": 70}]}
+        {"reasoning": "Guest asked for X, so I use Y because its notes say Z.", "name": "Drink Name", "description": "One sentence.", "ingredients": [{"stationId": 1, "percent": 30}, {"stationId": 9, "percent": 70}]}
         """
+    }
+
+    // MARK: - Request understanding (code-side, deterministic)
+
+    private static let stopWords: Set<String> = [
+        "something", "drink", "with", "that", "this", "like", "make", "want", "more",
+        "less", "little", "some", "very", "really", "please", "cocktail", "nice", "good",
+        "great", "feel", "feeling", "tonight", "give", "need", "have", "would", "could"
+    ]
+
+    /// Stations whose name or tasting notes share words with the guest's free
+    /// text — e.g. "wake me up" → Coffee ("wakes you up"). These become hard
+    /// requirements in the prompt and the rule check. Top two by hit count.
+    private func matchingStations(for text: String) -> [Station] {
+        let requestTokens = tokens(in: text).filter { !Self.stopWords.contains($0) }
+        guard !requestTokens.isEmpty else { return [] }
+
+        var scored: [(station: Station, hits: Int)] = []
+        for station in stations {
+            let stationTokens = tokens(in: "\(station.name) \(station.notes ?? "")")
+            let hits = requestTokens.filter { word in stationTokens.contains { sharesStem(word, $0) } }.count
+            if hits > 0 { scored.append((station, hits)) }
+        }
+        return scored.sorted { $0.hits > $1.hits }.prefix(2).map(\.station)
+    }
+
+    private func tokens(in text: String) -> [String] {
+        text.lowercased()
+            .split { !$0.isLetter }
+            .map(String.init)
+            .filter { $0.count >= 4 }
+    }
+
+    // Crude stemming: "wake" / "wakes" / "waking" agree on their first letters
+    private func sharesStem(_ a: String, _ b: String) -> Bool {
+        let length = min(a.count, b.count, 5)
+        return a.prefix(length) == b.prefix(length)
+    }
+
+    /// Hard rules the model may have ignored, phrased as corrections it can
+    /// act on in one follow-up turn.
+    private func ruleProblems(in generated: AIGeneratedDrink, required: [Station], allowStrong: Bool) -> [String] {
+        let byId = Dictionary(uniqueKeysWithValues: stations.map { ($0.id, $0) })
+        let used = Set(generated.ingredients.map(\.stationId))
+        var problems: [String] = []
+
+        for station in required where !used.contains(station.id) {
+            problems.append("It must include \(station.name) (id \(station.id)) because its notes match the request.")
+        }
+
+        let mixerShare = generated.ingredients
+            .filter { byId[$0.stationId]?.resolvedRole.isAlcoholic == false }
+            .reduce(0) { $0 + $1.percent }
+        if !allowStrong, mixerShare < 50 {
+            problems.append("It must include at least one non-alcoholic ingredient (soda, water, juice or other) making up half or more of the drink.")
+        }
+
+        let liqueurShare = generated.ingredients
+            .filter { byId[$0.stationId]?.resolvedRole == .liqueur }
+            .reduce(0) { $0 + $1.percent }
+        if liqueurShare > 25 {
+            problems.append("Keep liqueurs at or below 25 percent.")
+        }
+
+        let spiritCount = generated.ingredients
+            .filter { byId[$0.stationId]?.resolvedRole == .spirit }
+            .count
+        if !allowStrong, spiritCount > 1 {
+            problems.append("Use only one spirit; replace the others with mixers.")
+        }
+
+        // Pairing sanity: coffee and gin/tonic fight each other
+        let coffeeIds = Set(stations.filter { tokens(in: $0.notes ?? "").contains { sharesStem($0, "coffee") } || tokens(in: $0.name).contains("coffee") }.map(\.id))
+        // Name match, not tokens: "gin" is too short for the tokenizer
+        let ginIds = Set(stations.filter { station in
+            let name = station.name.lowercased()
+            return name.contains("gin") || name.contains("tonic")
+        }.map(\.id))
+        if !used.isDisjoint(with: coffeeIds), !used.isDisjoint(with: ginIds) {
+            problems.append("Coffee never mixes with gin or tonic; pair the coffee with liqueur, whiskey, rum or tequila instead.")
+        }
+        return problems
     }
 
     /// Pulls the JSON object out of the model's reply, tolerating stray prose
@@ -286,12 +383,39 @@ struct AITenderView: View {
 
     @MainActor
     private func mix() async {
-        let wants = (Array(selectedMoods) + [request.trimmingCharacters(in: .whitespaces)])
+        let text = request.trimmingCharacters(in: .whitespaces)
+        let wants = (selectedMoods.sorted() + [text])
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
+        let lowered = text.lowercased()
+        let wantsStrong = selectedMoods.contains("Strong")
+            || lowered.contains("strong") || lowered.contains("boozy")
+
+        // A changed request starts a fresh session so earlier drinks can't
+        // bias the new one; the same request reuses it so "Shake Up Another"
+        // can be told to differ from what came before
+        let requestKey = wants.lowercased()
+        let isRepeat = requestKey == lastRequestKey && session != nil
+        if !isRepeat { session = nil }
+        lastRequestKey = requestKey
+
+        // Deterministic nudge: the app, not the model, spots which tasting
+        // notes match the request ("wake me up" → Coffee's "wakes you up")
+        var required = matchingStations(for: text)
+        if selectedMoods.contains("Wake Me Up"),
+           let coffee = stations.first(where: { station in
+               tokens(in: station.notes ?? "").contains { sharesStem($0, "wakes") }
+           }),
+           !required.contains(where: { $0.id == coffee.id }) {
+            required.append(coffee)
+        }
 
         var prompt = "The guest wants: \(wants). Invent one drink for them."
-        if creation != nil {
+        if !required.isEmpty {
+            let list = required.map { "\($0.name) (id \($0.id))" }.joined(separator: " and ")
+            prompt += " Pantry check: the tasting notes of \(list) match this request, so the drink MUST include \(required.count == 1 ? "it" : "both")."
+        }
+        if isRepeat {
             prompt += " Make it clearly different from your previous suggestions."
         }
 
@@ -320,16 +444,27 @@ struct AITenderView: View {
                 generated = parseDrink(from: reply)
             }
 
+            // One corrective round if a hard rule was ignored; keep the first
+            // answer if the correction comes back unparseable
+            if let candidate = generated {
+                let problems = ruleProblems(in: candidate, required: required, allowStrong: wantsStrong)
+                if !problems.isEmpty {
+                    print("[AITender] Rule problems: \(problems)")
+                    reply = try await activeSession.respond(
+                        to: "Fix your drink. " + problems.joined(separator: " ") + " Respond with ONLY the corrected JSON object."
+                    ).content
+                    print("[AITender] Corrected reply: \(reply)")
+                    generated = parseDrink(from: reply) ?? candidate
+                }
+            }
+
             guard let generated else {
                 mixErrorText = looksLikeRefusal(reply)
                     ? "AI Tender politely declined that one. Try different moods or words."
                     : "AI Tender's answer came out garbled. Shake again!"
                 return
             }
-            let wantsStrong = selectedMoods.contains("Strong")
-                || request.lowercased().contains("strong")
-                || request.lowercased().contains("boozy")
-            guard let drink = drink(from: generated, allowStrong: wantsStrong) else {
+            guard let drink = drink(from: generated, allowStrong: wantsStrong, required: required) else {
                 mixErrorText = "That idea didn't map to the robot's stations. Try again!"
                 return
             }
@@ -366,11 +501,13 @@ struct AITenderView: View {
         return "AI Tender hit a snag: \(detail)"
     }
 
-    /// Maps the model's output onto the pantry: drops unknown stations, merges
-    /// duplicates, caps the alcoholic share unless the guest asked for strong,
-    /// then re-normalizes percents so they sum to exactly 100 — the model's
-    /// arithmetic is never trusted.
-    private func drink(from generated: AIGeneratedDrink, allowStrong: Bool) -> Drink? {
+    /// Maps the model's output onto the pantry and enforces the house rules
+    /// with real station roles — the model's judgment and arithmetic are
+    /// never trusted: drops unknown stations, merges duplicates, injects any
+    /// required ingredient it skipped, guarantees a mixer unless the guest
+    /// asked for strong, caps liqueurs and total alcohol, then re-normalizes
+    /// percents so they sum to exactly 100.
+    private func drink(from generated: AIGeneratedDrink, allowStrong: Bool, required: [Station]) -> Drink? {
         let byId = Dictionary(uniqueKeysWithValues: stations.map { ($0.id, $0) })
 
         var merged: [Int: Double] = [:]
@@ -387,23 +524,44 @@ struct AITenderView: View {
                        stationId: stationId,
                        percent: merged[stationId] ?? 0)
         }
+        func currentTotal() -> Double { ingredients.reduce(0) { $0 + $1.percent } }
+        func role(of ingredient: Ingredient) -> StationRole { byId[ingredient.stationId]?.resolvedRole ?? .other }
 
-        // Strength rule, enforced with real station roles rather than the
-        // model's judgment: scale spirits/liqueurs down to the cap and hand
-        // the difference to the mixers, proportionally
-        let alcoholCap = allowStrong ? 100.0 : 45.0
-        let isAlcoholic = { (ingredient: Ingredient) in byId[ingredient.stationId]?.resolvedRole.isAlcoholic == true }
-        let alcoholShare = ingredients.filter(isAlcoholic).reduce(0) { $0 + $1.percent }
-        let mixerShare = ingredients.filter { !isAlcoholic($0) }.reduce(0) { $0 + $1.percent }
-        if alcoholShare > alcoholCap, mixerShare > 0 {
-            let alcoholScale = alcoholCap / alcoholShare
-            let mixerScale = (100 - alcoholCap) / mixerShare
-            for index in ingredients.indices {
-                ingredients[index].percent *= isAlcoholic(ingredients[index]) ? alcoholScale : mixerScale
+        // Anything the tasting notes demanded but the model still skipped
+        // joins at a supporting 20 percent
+        for station in required where !ingredients.contains(where: { $0.stationId == station.id }) {
+            ingredients.append(Ingredient(name: station.name, stationId: station.id, percent: currentTotal() * 0.2))
+        }
+
+        // No mixer at all (tequila + liqueur, anyone?) gets the mildest one
+        // available at half the drink, unless strong was requested
+        if !allowStrong, !ingredients.contains(where: { !role(of: $0).isAlcoholic }) {
+            let preference: [StationRole] = [.water, .soda, .juice, .other]
+            if let mixer = preference.lazy.compactMap({ wanted in stations.first { $0.resolvedRole == wanted } }).first {
+                ingredients.append(Ingredient(name: mixer.name, stationId: mixer.id, percent: currentTotal()))
             }
         }
 
-        let total = ingredients.reduce(0) { $0 + $1.percent }
+        // Share caps: scale the capped group down and hand the difference to
+        // everything else, proportionally
+        func cap(_ group: (Ingredient) -> Bool, at cap: Double) {
+            let total = currentTotal()
+            guard total > 0 else { return }
+            let groupShare = ingredients.filter(group).reduce(0) { $0 + $1.percent } / total * 100
+            let restShare = 100 - groupShare
+            guard groupShare > cap, restShare > 0 else { return }
+            let groupScale = cap / groupShare
+            let restScale = (100 - cap) / restShare
+            for index in ingredients.indices {
+                ingredients[index].percent *= group(ingredients[index]) ? groupScale : restScale
+            }
+        }
+        cap({ role(of: $0) == .liqueur }, at: 25)
+        if !allowStrong {
+            cap({ role(of: $0).isAlcoholic }, at: 45)
+        }
+
+        let total = currentTotal()
         guard total > 0 else { return nil }
         for index in ingredients.indices {
             ingredients[index].percent = (ingredients[index].percent * 100 / total).rounded()
