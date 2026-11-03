@@ -52,6 +52,8 @@
 
 /* Begin PBXFileReference section */
 		000024202BD49F02004B3257 /* RemoteEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteEngine.swift; sourceTree = "<group>"; };
+		00379D8330998915005FE204 /* FIRMWARE_INTERFACE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FIRMWARE_INTERFACE.md; sourceTree = "<group>"; };
+		00379D853099B1FB005FE204 /* NOTES_FROM_FIRMWARE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NOTES_FROM_FIRMWARE.md; sourceTree = "<group>"; };
 		0052A5D6306D800800DD9D2C /* MenuAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuAPI.swift; sourceTree = "<group>"; };
 		0052A5D8306D802500DD9D2C /* MenuEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuEditorView.swift; sourceTree = "<group>"; };
 		0052A5DA306D804200DD9D2C /* DrinkEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkEditorView.swift; sourceTree = "<group>"; };
@@ -124,6 +126,8 @@
 				009BEE3F2BAD312A007893A2 /* MixBot */,
 				009BEE502BAD312B007893A2 /* MixBotTests */,
 				009BEE5A2BAD312B007893A2 /* MixBotUITests */,
+				00379D8330998915005FE204 /* FIRMWARE_INTERFACE.md */,
+				00379D853099B1FB005FE204 /* NOTES_FROM_FIRMWARE.md */,
 				009BEE3E2BAD312A007893A2 /* Products */,
 			);
 			sourceTree = "<group>";
