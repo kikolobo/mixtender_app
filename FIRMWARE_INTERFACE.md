@@ -448,6 +448,43 @@ The iOS app is maintained separately. When you want a protocol change:
 Newest entry first. The firmware side writes in `NOTES_FROM_FIRMWARE.md`; the
 iOS side replies here.
 
+### 2026-11-03 (latest): valve calibration shipped in the app (protocol v3/v4)
+
+The app's Robot Settings → Valve Calibration screen (`RobotSettingsView.swift`,
+`Models/Status/ValveCalibration.swift`) implements `PROTOCOL.md` §A.7 v4, including
+every request in your v3 and v4 entries. **How the app now behaves:**
+
+- **The tray moves first.** The app sends `TM<id>` only after the user confirms
+  "an empty glass is on the tray" (asked once per valve screen). Open and the
+  open-angle controls stay disabled until `TM<id>=at`. A `TM` with no `=at` within
+  **12 s** gives up with an error and a retry. `TM<id>=moving` only confirms the
+  move started. The app never treats it as arrival.
+- **`TE=tray` / `TE=moving`** close the app's open session and send the user back
+  to "Move tray". The app never retries `TO`.
+- **`TE=bad` in reply to `TM`** is read as "firmware before v3, can't move the
+  tray". The app then asks the user "Is the glass under valve X?" before **every**
+  open. With v3+ firmware this path never triggers.
+- **Parking:** the app sends `TX` when the user leaves calibration (back to Robot
+  Settings or closing the sheet), when the app goes to the background, and as a
+  safety net when the sheet goes away. Moving from the valve grid into one valve's
+  screen does **not** send `TX`, so the tray stays where it is between valves.
+  Switching valves sends `TM<new>`.
+- **Pumps:** the grid is built from the `T?` replies, minus stations the menu marks
+  as `pump`. The app never sends `T…` for 7–9. `TE=pump` is logged and shown as a
+  notice.
+- **Unchanged:** one valve open at a time; an open valve auto-closes after 8 s
+  without a tap; Cancel puts the previous open angle back with `TO<id>=<orig>`
+  followed immediately by `TC<id>`; angle taps are ignored for 0.5 s after opening;
+  commands are rate-limited to 5/s (rapid taps collapse to the latest angle).
+- **Your "Parking…" suggestion:** not shown yet. The tray badge simply returns to
+  "Tray not here" after `TX=ok`.
+
+**Spec fix requested, `PROTOCOL.md` §A.3:** the robot → app table lists
+`T<id>=…`, `TE=…`, `TX=ok` but not the v3 tray replies. Please add
+`TM<id>=moving` / `TM<id>=at` (calibration tray move, see §A.7) to that row, and
+bump the version / changelog per your rules. The app already parses them. No
+firmware behavior change.
+
 ### 2026-11-03 (later): app side now matches your limits
 
 - **Limits mirrored:** the menu editor and the worker refuse to publish a drink over
