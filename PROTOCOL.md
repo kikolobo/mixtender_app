@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Protocol version** | **6** |
+| **Protocol version** | **7** |
 | **Date** | 2026-11-03 |
 | **Firmware** | `kikolobo/MixTender`, branch `firmware-safety-and-calibration` |
 | **App** | `kikolobo/mixtender_app` (MixBot) |
@@ -51,9 +51,10 @@ treats them all the same, so it doesn't matter which one a message arrives on.
 discovers everything, subscribes, then writes `ehlo`. On unexpected disconnect the app
 rescans. The robot restarts advertising after a disconnect.
 
-**Sizes:** robot messages are kept ≤ 20 bytes where possible (the default MTU).
-`$0=` texts can be longer; iOS negotiates a larger MTU. App writes can exceed 20
-bytes (long writes work).
+**Sizes:** the robot accepts an ATT MTU up to **185** (messages up to 182 bytes). iOS
+negotiates it automatically on connect; the robot logs the result on USB serial
+(`MTU negotiated: …`). `S`/`W`/`T` messages stay ≤ 20 bytes anyway; `$0=` texts and `K=`
+replies can be longer. App writes can exceed 20 bytes (long writes also work).
 
 **Rate:** weight updates (`W`) are capped at ~10 Hz per step (the final `W` of a step
 is always sent). All messages are queued and sent in order, ≥ 5 ms apart, so bursts
@@ -67,6 +68,7 @@ is always sent). All messages are queued and sent in order, ≥ 5 ms apart, so b
 | `D:<station>=<ml>,…` | Pour a drink ([A.4](#a4-dispense-job-d)) |
 | `C!` | Cancel the running job ([A.5](#a5-cancel-c)) |
 | `T…` | Valve calibration ([A.7](#a7-valve-calibration-t)) |
+| `K…` | Scale setup: empty-tray weight (zero), min and max cup weight ([A.8](#a8-scale-setup-k)) (since v7) |
 
 Unknown commands are logged on USB serial and ignored, with no reply.
 
@@ -84,6 +86,7 @@ The first character picks the parser.
 | `W<step>=<grams>;` | Weight poured so far **by this step** (float, e.g. `W0=37.240000;`) |
 | `T<id>=…`, `TE=…`, `TX=ok` | Calibration replies ([A.7](#a7-valve-calibration-t)) |
 | `TM<id>=moving` / `TM<id>=at` | Calibration tray move started / arrived under valve `<id>` ([A.7](#a7-valve-calibration-t)) |
+| `K=…`, `KE=…` | Scale setup replies ([A.8](#a8-scale-setup-k)) (since v7) |
 
 - `<step>` is the **0-based index in the `D:` job**, not the station id.
 - `$` types other than `0` and `1` are **reserved**. Today's app clears its cup state
@@ -99,11 +102,14 @@ display them, not interpret them.
 **`$1` = OK to serve (since v6).** The app shows SERVE only while the last `$1` was `1`.
 The robot sends `$1=1` only when **all** of these are true, and `$1=0` otherwise:
 homed, scale answering, no job running, tray parked (not calibrating), an **empty cup**
-present (cup detected and ≤ 400 g, with 10 g hysteresis), and the previous drink removed.
+present (cup detected, i.e. above the **min cup weight**, and ≤ the **max cup weight**, default 450 g (400 g before v7), both settable in [A.8](#a8-scale-setup-k), with 10 g hysteresis), and the previous drink removed.
 
 `$1` is sent on every `ehlo` and **whenever that value changes** (e.g. `$1=0` when a job
 starts, stays `0` while the finished drink waits, `1` again when an empty cup is placed).
-A cup is detected when the scale reads > 10 g above the empty tray and lost at ≤ 3 g.
+A cup is detected when the scale reads more than the **min cup weight** (default 10 g) above the empty
+tray and lost at ≤ min − 10 g (never below 3 g; with the default, lost at ≤ 3 g).
+"Above the empty tray" uses the robot's stored empty-tray weight ([A.8](#a8-scale-setup-k)).
+If that value is stale, an empty cup can read as `Cup is not empty` (or a cup isn't seen at all).
 
 **Idle texts are pushed too.** Outside a job, the robot sends the matching `$0=` text
 whenever it changes: `Homing...`, `Starting up...`, `Please add a cup`, `Ready!`,
@@ -143,9 +149,9 @@ D:<stationId>=<ml>,<stationId>=<ml>,...
 | Homing succeeded | `Homing failed. Restart robot` |
 | Scale is answering (a reading within the last 1 s) | `Scale error` |
 | No job running, tray parked (also not homing, not parking after a cancel) | `Busy, try again` |
-| Cup present | `No Cup! Please add a cup!` (and `$1=0`) |
+| Cup present (above the min cup weight) | `No Cup! Please add a cup!` (and `$1=0`) |
 | Robot is Ready: the previous drink has been **removed** | `Remove your drink first` |
-| Cup weighs ≤ **400 g**, so it's probably empty | `Cup is not empty` |
+| Cup weighs ≤ the **max cup weight** (default **450 g**, settable, [A.8](#a8-scale-setup-k)), so it's probably empty | `Cup is not empty` |
 | Job is valid (see above) | `Invalid drink request` |
 | Dispatcher accepted the start | `Not ready, try again` |
 
@@ -288,6 +294,102 @@ calibration during a pour. Throttle angle changes to ≤ 5/s. On `TE=tray` or `T
 
 The USB console ([B.3](#b3-valve-calibration)) edits the **same** stored calibration.
 
+## A.8 Scale setup `K`
+
+(Since v7.) Three saved settings: the **empty-tray weight** (zero) and the **cup weight
+window** (min and max). All weights are "above the empty tray":
+
+| Reading above the empty tray | Robot says | `$1` | LEDs |
+|---|---|---|---|
+| ≤ min cup weight | `Please add a cup` | 0 | blue |
+| min … max | `Ready!` | 1 | green |
+| > max cup weight | `Cup is not empty` | 0 | yellow |
+
+**Empty-tray weight.** Cup detection, the "cup is not empty" check and the cup-removed abort all use
+the **absolute weight**: the raw scale reading minus the **empty-tray weight**. Pours are not
+affected (each step tares the scale first). The raw reading's zero drifts (load cell remounted,
+tray changed, temperature), so the empty-tray weight must be re-measured now and then. Symptom
+of a stale value: an empty cup shows `Cup is not empty`, or the robot says `Please add a cup`
+with a cup on the tray.
+
+Factory default: **121.38 g**. A value set with `KZ`/`KT` is saved in flash and survives reboot.
+
+**Min cup weight.** The lightest *empty* cup the robot accepts: anything at or below it counts as
+"no cup" (`Please add a cup`). Set it a bit below your lightest empty glass, so small objects or
+a wet tray don't count as a cup. Factory default **10 g**. Once detected, the cup is "lost" only at
+≤ min − 10 g (never below 3 g), so a cup near the limit doesn't flicker.
+
+**Max cup weight.** The heaviest *empty* cup the robot accepts: a cup reading more than this above
+the empty tray gets `Cup is not empty` (and `$1=0`, yellow LEDs). Set it a bit above your
+heaviest empty glass. Factory default **450 g**.
+
+Both: range **5–2000 g**, min must stay **at least 20 g below** max, saved in flash. The safety
+checks that mean "tray is clear" don't use the min: cup lifted mid-job (< 3 g) and drink taken
+after a job (< 2 g) stay as they are.
+
+**The app is the primary way to set this** (initial setup and any re-zero later). The USB
+console (`Z`, `K`) is a secondary, bench-only fallback for when no app is at hand.
+
+**Initial setup.** `<traySaved>=0` in the `K=` reply means the robot has never been zeroed and is
+running on the factory value, which is probably wrong for this robot. The app should then offer
+the zero flow below (e.g. a "Set up scale" prompt) before the first pour.
+
+| Command | Effect | Reply |
+|---------|--------|-------|
+| `K?` | Read the current values. Allowed any time | `K=…` |
+| `KZ` | **Zero**: the current reading becomes the empty tray, saved. **The tray must be empty** (no cup) | `K=…` |
+| `KT=<grams>` | Set the empty-tray weight to `<grams>` (float, −20000…20000), saved | `K=…` |
+| `KR` | Empty tray back to the default; the saved value is erased | `K=…` |
+| `KM=<grams>` | Set the max cup weight (float, 5–2000), saved | `K=…` |
+| `KMR` | Max cup weight back to the default (450); the saved value is erased | `K=…` |
+| `KN=<grams>` | Set the min cup weight (float, 5–2000), saved | `K=…` |
+| `KNR` | Min cup weight back to the default (10); the saved value is erased | `K=…` |
+
+Reply line (numbers with 1 decimal):
+```
+K=<absolute>,<emptyTray>,<defaultTray>,<traySaved>,<maxCup>,<defaultMaxCup>,<maxCupSaved>,<minCup>,<defaultMinCup>,<minCupSaved>
+e.g. K=0.3,135.2,121.4,1,450.0,450.0,0,10.0,10.0,0
+```
+- `<absolute>`: what the robot reads above the empty tray **right now** (≈ 0 with an empty
+  tray, ≈ the cup's weight with an empty cup). After `KZ` it's ≈ 0.
+- `<emptyTray>`: the value in use. `<defaultTray>`: the factory value.
+- `<traySaved>`: 1 if an empty-tray value is saved in flash.
+- `<maxCup>`, `<defaultMaxCup>`, `<maxCupSaved>`: the same for the max cup weight.
+- `<minCup>`, `<defaultMinCup>`, `<minCupSaved>`: the same for the min cup weight.
+- Parsers should ignore extra trailing fields (room for future settings).
+
+Errors (`KE=<code>`):
+
+| Code | Meaning |
+|------|---------|
+| `busy` | A job is running, a finished drink is waiting, or the robot is parking/homing. `KZ` also: tray not parked, calibration (`TM`) session active, or a tare in progress |
+| `scale` | `KZ`: the scale isn't answering |
+| `range` | `KT` outside −20000…20000; `KM`/`KN` outside 5–2000 or min not ≥ 20 g below max (also `KMR`/`KNR` when the default would cross the other limit) |
+| `bad` | Malformed command |
+| `flash` | Save/erase failed |
+
+Replies are **always** sent, even if identical to the previous message. Firmware older than v7
+doesn't reply: treat "no reply to `K?` within ~1.5 s" as "not supported".
+
+After a change, cup detection, `$1` and the idle `$0=` text update on their own within a moment
+(e.g. `Cup is not empty` → `Ready!`, or `Ready!` → `Please add a cup` after `KZ`).
+
+**Flow for any UI ("Zero scale"):**
+1. Tell the user to **remove the cup** and anything else from the tray. Wait for confirmation.
+2. Send `KZ` → expect `K=0.0,…` (absolute ≈ 0).
+3. Optional check: ask the user to place an empty cup and poll `K?`. `<absolute>` should be the
+   cup's weight (tens to a few hundred grams) and `$1=1` should follow.
+4. Optional: offer to set the cup window from that reading, e.g. min = cup's weight − 30 g
+   (`KN=`) and max = cup's weight + 50 g (`KM=`), or let the user type them. Send them in an
+   order that keeps min ≥ 20 g below max at every step (raising both: `KM` first; lowering
+   both: `KN` first), otherwise you get `KE=range`.
+
+Old apps ignore `K` replies (unknown first character), so this is backward compatible.
+Zeroing with a cup on the tray makes the cup count as "tray": the robot will then say
+`Please add a cup` with that cup on. Re-zero with the tray empty to fix it.
+
+The USB console ([B.2](#b2-commands)) edits the **same** stored values (`Z`, `K`, `M`); it's a fallback, not the main path.
+
 ---
 
 # Part B — USB serial console
@@ -317,7 +419,11 @@ The USB console ([B.3](#b3-valve-calibration)) edits the **same** stored calibra
 | `T` | Tare the scale (non-blocking, about 1 s; refused during a pour) |
 | `H` | Re-run homing (e.g. after `HOMING FAILED`; refused during a pour) |
 | `S` | Print the current (tared) weight |
-| `A` | Print the absolute weight (above the empty tray) |
+| `A` | Print the absolute weight (above the empty tray), with the gross reading, empty-tray weight and the cup window (min–max) |
+| `Z` | Zero: the current reading becomes the empty-tray weight, saved (same as BLE `KZ`; tray parked and **empty**) |
+| `N` | Prompt for the min cup weight: grams + Enter to set and save (like `KN=`), `R` + Enter = default (like `KNR`), Enter alone = cancel |
+| `M` | Prompt for the max empty-cup weight: grams + Enter to set and save (like `KM=`), `R` + Enter = default (like `KMR`), Enter alone = cancel |
+| `K` | Prompt for the empty-tray weight: type grams and Enter to set and save (like `KT=`), `R` + Enter = default (like `KR`), Enter alone = cancel. Keys typed after `K` are not commands |
 | `,` / `.` | Scale calibration factor −10 / +10, prints factor and reading (not saved) |
 | `#` | Debug: run **pump 2** to 50 g in place, without moving the tray or checks |
 
@@ -347,9 +453,30 @@ seals → `!` → `G2` … → `X` when done.
 Storage: NVS namespace `valvetrim`, keys `v<index>o` / `v<index>c` (0-based index),
 holding the **trim** (offset from the default angle), not the absolute angle.
 
+Scale setup: NVS namespace `scale`, keys `empty` (empty-tray weight), `mincup` and `maxcup`
+(cup window), floats in grams. Logged at boot as `[Scale] Empty tray weight: …` and
+`[Scale] Cup window: …`.
+
 ---
 
 # Changelog
+
+## v7 — 2026-11-03
+BLE (backward compatible; old apps ignore `K` replies):
+- New `K` commands to read and set the **empty-tray weight** used by cup detection and the
+  "cup is not empty" check ([A.8](#a8-scale-setup-k)): `K?`, `KZ` (zero), `KT=<g>`,
+  `KR`, and to set the **cup weight window**: max `KM=<g>`/`KMR`, min `KN=<g>`/`KNR`. Replies
+  `K=<absolute>,<emptyTray>,<defaultTray>,<traySaved>,<maxCup>,<defaultMaxCup>,<maxCupSaved>,<minCup>,<defaultMinCup>,<minCupSaved>`
+  or `KE=<code>`. Saved in flash.
+- The "cup is not empty" limit (max cup weight) defaults to **450 g** (was a fixed 400 g).
+  Same texts and `$1` behavior.
+- Cup detection uses the settable **min cup weight** (default 10 g, as before).
+
+Firmware: the LEDs show **yellow** when a cup is on but the robot isn't clear to serve (cup not
+empty, calibrating, parking), and green only when `$1=1`. No wire-format change.
+
+USB:
+- New `Z` (zero), `K` (type the empty-tray weight), `N` / `M` (type the min / max cup weight). `A` also prints the gross reading and the empty-tray weight.
 
 ## v6 — 2026-11-03
 BLE (backward compatible; requested by the app side):
@@ -362,6 +489,8 @@ BLE (backward compatible; requested by the app side):
 - `W` updates capped at ~10 Hz; the final `W` of a step is always sent before its `S`.
 
 Firmware: the HX711 sample rate is measured at boot and logged (`[Dispenser] Scale rate: …`).
+The robot now accepts an MTU up to 185 (`BLEDevice::setMTU`), so long `$0=` texts aren't cut
+at 20 bytes. No wire-format change.
 
 ## v5 — 2026-11-03
 BLE (backward compatible):

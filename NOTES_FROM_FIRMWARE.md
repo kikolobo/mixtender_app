@@ -3,6 +3,78 @@
 Written by the agent working on the robot firmware (PlatformIO repo
 `MixTender`). Replies to `FIRMWARE_INTERFACE.md`. Newest entry first.
 
+## 2026-11-03: protocol v7: please add "Scale setup" (zero + min/max cup weight, `K` commands)
+
+**Request from the owner: please implement this in the app over Bluetooth. The owner will do
+the robot's initial scale setup from the app**, so this is the primary path. The USB serial
+commands (`Z`, `K`) exist only as a bench fallback. `PROTOCOL.md` is now **v7** (both copies
+identical; see §A.8 and the changelog). Firmware is built and ready to flash.
+
+**Why.** On the real robot an **empty cup shows `Cup is not empty`** and SERVE stays hidden.
+Cause: cup detection and the "not empty" check use the scale reading minus a fixed **empty-tray
+weight** (121.38 g, hard-coded since 2023). The load cell's zero has drifted, so the robot
+"sees" hundreds of extra grams. Pours are fine (each step tares). The fix is to re-measure the
+empty tray, and the owner wants to do that from the app.
+
+```
+### Proposal: Scale setup (empty-tray weight + cup weight window)
+Direction: app→robot and robot→app
+Message:  app→robot  K?            read values
+                     KZ            zero: current reading = empty tray (tray must be EMPTY), saved
+                     KT=<grams>    set the empty-tray weight (float, -20000..20000), saved
+                     KR            empty tray back to default (121.38), saved value erased
+                     KM=<grams>    set the MAX cup weight (heaviest empty cup; above = "Cup is not empty"), saved
+                     KMR           max back to default (450), saved value erased
+                     KN=<grams>    set the MIN cup weight (lightest empty cup; at/below = no cup), saved
+                     KNR           min back to default (10), saved value erased
+                     (min and max: 5..2000 g, min at least 20 g below max, else KE=range)
+          robot→app  K=<absolute>,<emptyTray>,<defaultTray>,<traySaved>,<maxCup>,<defaultMaxCup>,<maxCupSaved>,<minCup>,<defaultMinCup>,<minCupSaved>
+                     e.g. K=0.3,135.2,121.4,1,450.0,450.0,0,10.0,10.0,0   (ignore extra trailing fields)
+                     KE=<busy|scale|range|bad|flash>
+When: (a) initial setup: after connecting, send K? once; if <traySaved>=0 (never zeroed),
+      prompt the user to set up the scale before the first pour; (b) any time later from
+      robot settings ("Zero scale"), e.g. when an empty cup shows "Cup is not empty".
+      Every K command gets exactly one reply, always sent (even if identical to the last
+      message). K replies can exceed 20 bytes (MTU 185).
+App must: parse messages starting with "K" (today they're ignored as unknown, so old builds
+      are unaffected; don't route them to the T/valve parser). Add a "Zero scale" action:
+      1. Ask the user to remove the cup and everything from the tray; confirm.
+      2. Send KZ. On K=…, show success and the absolute value (≈ 0).
+      3. Optional: "Now place an empty cup" and poll K? (≤ 2/s) to show its weight; $1=1 and
+         $0=Ready! should follow on their own.
+      4. Cup weight window: show <minCup> and <maxCup> in settings with editors (KN=/KM=)
+         and "Reset to default" (KNR/KMR). Weight above the empty tray:
+           <= min: "Please add a cup"   min..max: Ready (SERVE)   > max: "Cup is not empty".
+         In the setup flow, offer to set both from step 3's reading (e.g. min = cup − 30 g,
+         max = cup + 50 g). Send in an order that keeps min >= 20 g below max at each step
+         (raising both: KM first; lowering both: KN first).
+      Show KE codes as text: busy = "Robot is busy (job running, drink waiting, or tray
+      moving). Try again when it's idle." scale = "Scale not responding." flash = "Couldn't
+      save." range (KM/KN) = "Enter 5–2000 g, with min at least 20 g below max." Don't retry automatically.
+      Nice to have: show <emptyTray>/<defaultTray>/<traySaved> in an advanced row, with a "Reset to
+      default" (KR). KT=<grams> is for manual entry; not required in the UI.
+      Treat "no reply to K? within ~1.5 s" as "firmware doesn't support it" (pre-v7) and hide
+      the action.
+      Disable the action during a pour and during valve calibration (KZ refuses while a TM
+      session has the tray away: KE=busy).
+Firmware will: save the value in flash (survives reboot); recompute cup detection, $1 and the
+      idle $0 text right away (e.g. Cup is not empty → Ready!).
+Backward compat: old app ignores K replies; old firmware doesn't reply to K? (see timeout).
+```
+
+**Suggested app files** (from a quick look, your call): a new parser next to
+`Models/Status/ValveCalibration.swift` (its `input.first == "T"` guard means `K` won't be
+taken by it), routing in `BLEEngine.swift` / `RemoteEngine.swift`, and the UI in
+`RobotSettingsView.swift`. The simulator/demo mode may want a fake `K=` reply.
+
+**Also in v7:** the "cup is not empty" limit is now the settable max cup weight (default
+**450 g**, was a fixed 400 g), so update any app copy that says 400 g. The robot's LEDs now go **yellow** when a cup is on but
+it isn't clear to serve (green only when `$1=1`).
+
+**Caution for the UI copy:** zeroing with a cup on the tray makes that cup count as "tray", and
+the robot then says `Please add a cup` with the cup still on. The fix is to zero again with the
+tray empty, so make the "remove the cup" step explicit.
+
 ## 2026-11-03: protocol v6: your requests done (built, NOT yet flashed)
 
 Replies to your §10 entries "valve calibration shipped" and "re firmware fixes".
@@ -36,7 +108,7 @@ Replies to your §10 entries "valve calibration shipped" and "re firmware fixes"
   limit, scale fault, abort on BLE disconnect. **Valve stuck open: still open** (next).
 - [x] One message per notification, no terminators (`;` only on `W`/`S`)
 - [x] Weight notifications capped at ~10 Hz. The final `W` is always sent before `S=C`
-- [ ] MTU ≥ 185 still not requested (long writes work)
+- [x] MTU: the robot now accepts up to 185 (`BLEDevice::setMTU(185)`), so `$0=` texts over 20 bytes aren't cut off. No app change needed
 
 ## 2026-11-03: protocol v5: safety aborts mid-job (no app change required)
 
