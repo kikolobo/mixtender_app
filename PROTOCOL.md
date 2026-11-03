@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Protocol version** | **5** |
+| **Protocol version** | **6** |
 | **Date** | 2026-11-03 |
 | **Firmware** | `kikolobo/MixTender`, branch `firmware-safety-and-calibration` |
 | **App** | `kikolobo/mixtender_app` (MixBot) |
@@ -55,8 +55,9 @@ rescans. The robot restarts advertising after a disconnect.
 `$0=` texts can be longer; iOS negotiates a larger MTU. App writes can exceed 20
 bytes (long writes work).
 
-**Rate:** the robot sends at most ~10–20 messages/s (weight updates follow the
-scale's sample rate). Bursts (e.g. job rejection, `T?`) are spaced 5 ms apart.
+**Rate:** weight updates (`W`) are capped at ~10 Hz per step (the final `W` of a step
+is always sent). All messages are queued and sent in order, ≥ 5 ms apart, so bursts
+(job rejection, aborts, `T?`) never block the robot.
 
 ## A.2 Commands: app → robot
 
@@ -76,27 +77,40 @@ The first character picks the parser.
 | Message | Meaning |
 |---------|---------|
 | `$0=<text>` | Status text for the user (≤ ~40 chars). Value is shown verbatim |
-| `$1=1` / `$1=0` | Cup present / absent. Exactly these bytes (no `;`) |
+| `$1=1` / `$1=0` | **OK to serve** / not (since v6; see below). Exactly these bytes (no `;`) |
 | `S<step>=P;` | Step `<step>` started (Processing) |
 | `S<step>=C;` | Step finished OK (Complete) |
 | `S<step>=F;` | Step failed or was not executed (Failed) |
 | `W<step>=<grams>;` | Weight poured so far **by this step** (float, e.g. `W0=37.240000;`) |
 | `T<id>=…`, `TE=…`, `TX=ok` | Calibration replies ([A.7](#a7-valve-calibration-t)) |
+| `TM<id>=moving` / `TM<id>=at` | Calibration tray move started / arrived under valve `<id>` ([A.7](#a7-valve-calibration-t)) |
 
 - `<step>` is the **0-based index in the `D:` job**, not the station id.
 - `$` types other than `0` and `1` are **reserved**. Today's app clears its cup state
   on an unknown `$` type, so don't send new ones without an app change first.
 - The trailing `;` on `S`/`W` is tolerated by the app. Never add one to `$` messages.
 
-**Status texts the robot sends (`$0=`):** `Starting up...`, `Please add a cup`,
-`Ready!`, `Serving your drink!`, `Still Working!`, `Get your drink!`, `Parking...`,
-`Cancelled`, `Homing failed. Restart robot`, `Scale error`, the rejection reasons in
+**Status texts the robot sends (`$0=`):** `Starting up...`, `Homing...`, `Please add a cup`,
+`Ready!`, `Cup is not empty`, `Serving your drink!`, `Still Working!`, `Get your drink!`,
+`Parking...`, `Calibrating...`, `Cancelled`, `Homing failed. Restart robot`, `Scale error`, the rejection reasons in
 [A.4](#a4-dispense-job-d) and the abort reasons in [A.4.1](#a41-safety-aborts). The app should
 display them, not interpret them.
 
-**Cup state:** `$1=` is sent on every `ehlo` and whenever the robot's cup state
-changes. A cup is detected when the scale reads > 10 g above the empty tray and is
-lost at ≤ 3 g.
+**`$1` = OK to serve (since v6).** The app shows SERVE only while the last `$1` was `1`.
+The robot sends `$1=1` only when **all** of these are true, and `$1=0` otherwise:
+homed, scale answering, no job running, tray parked (not calibrating), an **empty cup**
+present (cup detected and ≤ 400 g, with 10 g hysteresis), and the previous drink removed.
+
+`$1` is sent on every `ehlo` and **whenever that value changes** (e.g. `$1=0` when a job
+starts, stays `0` while the finished drink waits, `1` again when an empty cup is placed).
+A cup is detected when the scale reads > 10 g above the empty tray and lost at ≤ 3 g.
+
+**Idle texts are pushed too.** Outside a job, the robot sends the matching `$0=` text
+whenever it changes: `Homing...`, `Starting up...`, `Please add a cup`, `Ready!`,
+`Cup is not empty`, `Parking...`, `Calibrating...`, `Scale error`,
+`Homing failed. Restart robot`. During a job, while the finished drink waits, and
+while parking after a cancel, the job's own texts stand (`Still Working!`,
+`Get your drink!`, the abort reason, `Cancelled`).
 
 ## A.4 Dispense job `D:`
 
@@ -180,6 +194,7 @@ While a job runs, the robot stops the **whole job** if any of these happen:
 | No flow: the step's weight hasn't risen by 1 g in 5 s (empty bottle, blocked valve, dead pump) | `Bottle empty? Stopped` |
 | One step has poured for more than 90 s | `Pour too slow. Stopped` |
 | Scale stopped answering (no reading for 1 s while pouring, or a tare that doesn't finish in 3 s) | `Scale error. Stopped` |
+| The app disconnected (since v6; the app can't resume a job) | `Disconnected. Stopped` (seen only if a client is still connected; normally none) |
 
 On an abort the robot closes the output and sends **`S<i>=F` for the current step and every
 remaining step**, so every step ends in `C` or `F`. Then it sends the `$0=` text and parks.
@@ -201,7 +216,9 @@ aborts, `T?`) never blocks the robot.
 
 - If the app disconnects during **calibration**, the robot closes all valves and parks the
   tray if calibration moved it.
-- A running **job continues** if the app disconnects. (Aborting a job on disconnect is planned.)
+- A running **job is stopped** if the app disconnects (since v6): outputs off, tray parks,
+  and the robot waits for the cup to be removed ([A.4.1](#a41-safety-aborts)). After
+  reconnecting, `ehlo` reports the current state (`$1=0` until the drink is removed).
 
 ## A.7 Valve calibration `T`
 
@@ -333,6 +350,18 @@ holding the **trim** (offset from the default angle), not the absolute angle.
 ---
 
 # Changelog
+
+## v6 — 2026-11-03
+BLE (backward compatible; requested by the app side):
+- §A.3 now lists the calibration tray replies `TM<id>=moving` / `TM<id>=at` (behavior unchanged since v3).
+- `$1` now means **OK to serve**: `$1=0` also while a job runs, while the finished drink
+  waits, for a cup over 400 g, while calibrating/parking/homing, and on homing/scale faults.
+  It's pushed on every change.
+- Idle `$0=` texts are pushed on change (new: `Homing...`, `Cup is not empty`, `Calibrating...`).
+- A BLE disconnect during a job stops the job.
+- `W` updates capped at ~10 Hz; the final `W` of a step is always sent before its `S`.
+
+Firmware: the HX711 sample rate is measured at boot and logged (`[Dispenser] Scale rate: …`).
 
 ## v5 — 2026-11-03
 BLE (backward compatible):
