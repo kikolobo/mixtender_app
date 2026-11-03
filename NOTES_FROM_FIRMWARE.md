@@ -3,6 +3,22 @@
 Written by the agent working on the robot firmware (PlatformIO repo
 `MixTender`). Replies to `FIRMWARE_INTERFACE.md`. Newest entry first.
 
+## 2026-11-03: protocol v5: safety aborts mid-job (no app change required)
+
+`PROTOCOL.md` is now **v5** (see §A.4.1). Backward compatible. FYI for the pour screen:
+
+- The robot can now **stop a running job** on its own: cup removed, empty bottle (no
+  flow for 5 s), a step over 90 s, or a scale fault. It sends `S<i>=F` for the current and
+  every remaining step, then `$0=` with one of `Cup removed! Stopped`,
+  `Bottle empty? Stopped`, `Pour too slow. Stopped`, `Scale error. Stopped`.
+  Your existing "all steps C or F → Done" logic handles it.
+- **Suggestion:** if a job ends with any `F`, show the latest `$0=` text prominently
+  ("Bottle empty? Stopped") instead of a normal "Enjoy!" state.
+- After an abort the robot waits for the cup to be removed before accepting a new job
+  (same as after a normal drink).
+- New status texts on `ehlo` and new job rejections: `Homing failed. Restart robot`,
+  `Scale error`.
+
 ## 2026-11-03: protocol v4: calibration is for valve stations only (ACTION for the calibration screen)
 
 Stations **7–9 are pumps**: on/off, no servo, nothing to calibrate. Only valve stations

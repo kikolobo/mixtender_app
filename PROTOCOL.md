@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Protocol version** | **4** |
+| **Protocol version** | **5** |
 | **Date** | 2026-11-03 |
 | **Firmware** | `kikolobo/MixTender`, branch `firmware-safety-and-calibration` |
 | **App** | `kikolobo/mixtender_app` (MixBot) |
@@ -90,7 +90,8 @@ The first character picks the parser.
 
 **Status texts the robot sends (`$0=`):** `Starting up...`, `Please add a cup`,
 `Ready!`, `Serving your drink!`, `Still Working!`, `Get your drink!`, `Parking...`,
-`Cancelled`, and the rejection reasons in [A.4](#a4-dispense-job-d). The app should
+`Cancelled`, `Homing failed. Restart robot`, `Scale error`, the rejection reasons in
+[A.4](#a4-dispense-job-d) and the abort reasons in [A.4.1](#a41-safety-aborts). The app should
 display them, not interpret them.
 
 **Cup state:** `$1=` is sent on every `ehlo` and whenever the robot's cup state
@@ -125,6 +126,8 @@ D:<stationId>=<ml>,<stationId>=<ml>,...
 
 | Condition | `$0=` reason if not met |
 |-----------|------------------------|
+| Homing succeeded | `Homing failed. Restart robot` |
+| Scale is answering (a reading within the last 1 s) | `Scale error` |
 | No job running, tray parked (also not homing, not parking after a cancel) | `Busy, try again` |
 | Cup present | `No Cup! Please add a cup!` (and `$1=0`) |
 | Robot is Ready: the previous drink has been **removed** | `Remove your drink first` |
@@ -163,9 +166,28 @@ Bot → $0=Get your drink!
 ```
 
 **Robot-side pour mechanics** (informative): move to station → wait 500 ms to settle →
-tare → open the valve / start the pump → close when the step weight reaches its target →
-wait 1 s for drips → 200 ms pause → next step. All valves are closed before every
-job starts.
+tare (averages 10 readings, about 1 s, without blocking) → open the valve / start the pump →
+close when the step weight reaches its target → wait 1 s for drips → 200 ms pause → next
+step. All valves are closed before every job starts.
+
+### A.4.1 Safety aborts
+
+While a job runs, the robot stops the **whole job** if any of these happen:
+
+| Trigger | `$0=` text |
+|---------|-----------|
+| Cup lifted: weight above the empty tray < 3 g for 300 ms (while moving, pouring, or between steps) | `Cup removed! Stopped` |
+| No flow: the step's weight hasn't risen by 1 g in 5 s (empty bottle, blocked valve, dead pump) | `Bottle empty? Stopped` |
+| One step has poured for more than 90 s | `Pour too slow. Stopped` |
+| Scale stopped answering (no reading for 1 s while pouring, or a tare that doesn't finish in 3 s) | `Scale error. Stopped` |
+
+On an abort the robot closes the output and sends **`S<i>=F` for the current step and every
+remaining step**, so every step ends in `C` or `F`. Then it sends the `$0=` text and parks.
+It then **waits for the cup to be removed** (like after a finished drink) before it accepts a
+new job.
+
+All messages are queued and sent in order, at least 5 ms apart, so a burst (rejections,
+aborts, `T?`) never blocks the robot.
 
 ## A.5 Cancel `C!`
 
@@ -275,7 +297,8 @@ The USB console ([B.3](#b3-valve-calibration)) edits the **same** stored calibra
 | `P` | Move tray to station 7 (pumps) |
 | `B` | Start a built-in test job: valve 1, pumps 1–3, valve 2, 50 g each (only from Ready) |
 | `C` | Cancel the running job (like BLE `C!`, but sends no `$0=Cancelled`) |
-| `T` | Tare the scale |
+| `T` | Tare the scale (non-blocking, about 1 s; refused during a pour) |
+| `H` | Re-run homing (e.g. after `HOMING FAILED`; refused during a pour) |
 | `S` | Print the current (tared) weight |
 | `A` | Print the absolute weight (above the empty tray) |
 | `,` / `.` | Scale calibration factor −10 / +10, prints factor and reading (not saved) |
@@ -310,6 +333,21 @@ holding the **trim** (offset from the default angle), not the absolute angle.
 ---
 
 # Changelog
+
+## v5 — 2026-11-03
+BLE (backward compatible):
+- Safety aborts during a job: cup removed, no flow (empty bottle), 90 s pour limit, scale
+  fault. They fail the current and all remaining steps (`S<i>=F`), send a `$0=` reason, park,
+  and wait for cup removal.
+- New job preconditions: homing succeeded (`Homing failed. Restart robot`), scale answering
+  (`Scale error`). `ehlo` reports these as the status text too.
+- Outgoing messages are queued and paced (≥ 5 ms apart) instead of sent with delays.
+
+Firmware internals: non-blocking tare, homing timeout (switch not found / 120 s), main-loop
+watchdog (~5 s), LED refresh capped at 30 fps.
+
+USB:
+- `T` is non-blocking and refused during a pour. New `H` re-homes.
 
 ## v4 — 2026-11-03
 - BLE: `T` commands with a pump station id (7–9) now reply `TE=pump` instead of `TE=valve`.
