@@ -1027,7 +1027,8 @@ private struct AutoCloseBar: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 0.1)) { context in
-            let remaining = max(0, deadline.timeIntervalSince(context.date))
+            // Clamp to 0...total: the deadline can sit a hair past `total` from now.
+            let remaining = min(total, max(0, deadline.timeIntervalSince(context.date)))
             let color: Color = remaining < 3 ? .red : .orange
             VStack(alignment: .leading, spacing: 6) {
                 Label("Closes automatically in \(Int(remaining.rounded(.up))) s", systemImage: "timer")
