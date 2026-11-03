@@ -6,13 +6,20 @@
 import Foundation
 import Observation
 
-// Empty-tray weight over BLE ("K" messages, PROTOCOL.md §A.8, since v7).
-// Cup detection and the 450 g "cup is not empty" check use the scale reading
-// minus a stored empty-tray weight. The load cell's zero drifts, so a stale
-// value makes an empty cup read as "Cup is not empty". Zeroing (KZ) with the
-// tray empty re-measures it; the robot saves it in flash.
+// Scale setup over BLE ("K" messages, PROTOCOL.md §A.8, since v7). Three
+// settings, all saved in flash by the robot:
+// - the empty-tray weight: cup detection and the "cup is not empty" check use
+//   the scale reading minus this. The load cell's zero drifts, so a stale
+//   value makes an empty cup read as "Cup is not empty". Zeroing (KZ) with
+//   the tray empty re-measures it.
+// - the cup weight window, above the empty tray:
+//     ≤ min cup weight     → "Please add a cup" (no cup)
+//     min … max            → "Ready!" ($1=1)
+//     > max cup weight     → "Cup is not empty"
+//   KN=<grams> / KM=<grams>, both 5–2000 g, min at least 20 g below max.
 
-/// The robot's `K=<absolute>,<emptyTray>,<default>,<saved>` reply.
+/// The robot's `K=<absolute>,<emptyTray>,<defaultTray>,<traySaved>,
+/// <maxCup>,<defaultMaxCup>,<maxCupSaved>,<minCup>,<defaultMinCup>,<minCupSaved>` reply.
 struct ScaleReading: Equatable {
     /// What the robot reads above the empty tray right now (≈ 0 when empty)
     var absolute: Double
@@ -20,8 +27,16 @@ struct ScaleReading: Equatable {
     var emptyTray: Double
     /// The factory empty-tray weight
     var defaultEmptyTray: Double
-    /// A value is saved in flash; false = never zeroed, running on the factory value
-    var saved: Bool
+    /// An empty-tray value is saved in flash; false = never zeroed, running on the factory value
+    var traySaved: Bool
+    /// The heaviest empty cup accepted, in use
+    var maxCup: Double
+    var defaultMaxCup: Double
+    var maxCupSaved: Bool
+    /// The lightest empty cup accepted (at or below = no cup), in use
+    var minCup: Double
+    var defaultMinCup: Double
+    var minCupSaved: Bool
 }
 
 enum ScaleMessage: Equatable {
@@ -29,8 +44,8 @@ enum ScaleMessage: Equatable {
     case error(String)
 }
 
-/// Parses `K=<absolute>,<emptyTray>,<default>,<saved>` or `KE=<code>`.
-/// Returns nil for anything else.
+/// Parses a `K=` reading (10 fields; extra trailing fields are ignored, as the
+/// protocol asks) or `KE=<code>`. Returns nil for anything else.
 func parseScaleMessage(_ input: String) -> ScaleMessage? {
     guard input.first == "K" else { return nil }
     let parts = input.dropFirst().split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
@@ -41,13 +56,20 @@ func parseScaleMessage(_ input: String) -> ScaleMessage? {
     case "E":
         return .error(value)
     case "":
-        let fields = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        let numbers = fields.compactMap(Double.init)
-        guard fields.count == 4, numbers.count == 4 else { return nil }
+        let fields = value.split(separator: ",", omittingEmptySubsequences: false)
+        guard fields.count >= 10 else { return nil }
+        let numbers = fields.prefix(10).compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        guard numbers.count == 10 else { return nil }
         return .reading(ScaleReading(absolute: numbers[0],
                                      emptyTray: numbers[1],
                                      defaultEmptyTray: numbers[2],
-                                     saved: numbers[3] == 1))
+                                     traySaved: numbers[3] == 1,
+                                     maxCup: numbers[4],
+                                     defaultMaxCup: numbers[5],
+                                     maxCupSaved: numbers[6] == 1,
+                                     minCup: numbers[7],
+                                     defaultMinCup: numbers[8],
+                                     minCupSaved: numbers[9] == 1))
     default:
         return nil
     }
@@ -66,11 +88,20 @@ final class ScaleZero {
     }
 
     /// Firmware before v7 ignores K?; no reply in this window means "not supported"
-    static let replyTimeout: Duration = .milliseconds(1500)
+    nonisolated static let replyTimeout: Duration = .milliseconds(1500)
+
+    /// Allowed min and max cup weight (KN= / KM=)
+    nonisolated static let cupLimitRange: ClosedRange<Double> = 5...2000
+    /// The min must stay at least this far below the max
+    nonisolated static let minCupGap = 20.0
+    /// Margins around a measured empty cup when suggesting the window
+    nonisolated static let minCupMargin = 30.0
+    nonisolated static let maxCupMargin = 50.0
+    nonisolated static let rangeNotice = "Enter 5–2000 g, with min at least 20 g below max."
 
     private(set) var availability: Availability = .idle
     private(set) var reading: ScaleReading?
-    /// Waiting for the reply to KZ or KR
+    /// Waiting for the reply to a command that changes a setting
     private(set) var isWorking = false
     /// Set when a KZ succeeded; cleared when a new zero starts
     private(set) var didZero = false
@@ -90,11 +121,18 @@ final class ScaleZero {
     }
 
     /// The robot has never been zeroed and runs on the factory value
-    var needsSetup: Bool { reading?.saved == false }
+    var needsSetup: Bool { reading?.traySaved == false }
 
     var canControl: Bool { availability == .available && !isWorking }
 
     // MARK: Commands
+
+    /// Opening the zero screen: forget the last result and read fresh values.
+    func start() {
+        didZero = false
+        notice = nil
+        check()
+    }
 
     /// Asks for the current values; also how support is detected.
     func check() {
@@ -103,9 +141,10 @@ final class ScaleZero {
     }
 
     /// K? for live weight; skipped while one is already waiting so polling
-    /// never piles up commands.
+    /// never piles up commands, and while a setting change is waiting so a
+    /// poll reply can't be mistaken for its answer.
     func refresh() {
-        guard !inFlight.contains("K?") else { return }
+        guard !isWorking, !inFlight.contains("K?") else { return }
         send("K?")
     }
 
@@ -127,6 +166,61 @@ final class ScaleZero {
         send("KR")
     }
 
+    /// Sets the heaviest empty cup the robot accepts.
+    func setMaxCup(_ grams: Double) {
+        guard let reading else { return }
+        setCupWindow(min: reading.minCup, max: grams)
+    }
+
+    /// Sets the lightest empty cup the robot accepts.
+    func setMinCup(_ grams: Double) {
+        guard let reading else { return }
+        setCupWindow(min: grams, max: reading.maxCup)
+    }
+
+    /// Sets the min and/or max cup weight, sending only what changes. With
+    /// both, the order keeps min ≥ 20 g below max after each command, or
+    /// the robot refuses the first one with KE=range.
+    func setCupWindow(min newMin: Double, max newMax: Double) {
+        guard canControl, let reading else { return }
+        guard Self.isValidWindow(min: newMin, max: newMax) else {
+            notice = Self.rangeNotice
+            return
+        }
+        let setMin = newMin != reading.minCup ? "KN=" + String(format: "%.1f", newMin) : nil
+        let setMax = newMax != reading.maxCup ? "KM=" + String(format: "%.1f", newMax) : nil
+        // Max first is safe if the current min fits under the new max
+        let maxFirst = Self.isValidWindow(min: reading.minCup, max: newMax)
+        let commands = (maxFirst ? [setMax, setMin] : [setMin, setMax]).compactMap { $0 }
+        guard !commands.isEmpty else { return }
+        notice = nil
+        isWorking = true
+        commands.forEach(send)
+    }
+
+    /// Max cup weight back to the factory value; the saved value is erased.
+    func resetMaxCup() {
+        reset("KMR")
+    }
+
+    /// Min cup weight back to the factory value; the saved value is erased.
+    func resetMinCup() {
+        reset("KNR")
+    }
+
+    nonisolated static func isValidWindow(min: Double, max: Double) -> Bool {
+        cupLimitRange.contains(min) && cupLimitRange.contains(max) && min <= max - minCupGap
+    }
+
+    /// The window to offer for an empty cup weighing `cup`: min = cup − 30 g
+    /// (rounded down to 10 g), max = cup + 50 g (rounded up to 10 g), in range.
+    nonisolated static func suggestedWindow(forCup cup: Double) -> (min: Double, max: Double) {
+        let lower = cupLimitRange.lowerBound, upper = cupLimitRange.upperBound
+        let maxCup = Swift.min(Swift.max(((cup + maxCupMargin) / 10).rounded(.up) * 10, lower + minCupGap), upper)
+        let minCup = Swift.min(Swift.max(((cup - minCupMargin) / 10).rounded(.down) * 10, lower), maxCup - minCupGap)
+        return (minCup, maxCup)
+    }
+
     /// The BLE link dropped; the robot may be reflashed meanwhile.
     func connectionLost() {
         inFlight.removeAll()
@@ -142,7 +236,8 @@ final class ScaleZero {
     func handle(_ message: ScaleMessage) {
         let command = inFlight.isEmpty ? nil : inFlight.removeFirst()
         if inFlight.isEmpty { timeoutTask?.cancel() }
-        if command == "KZ" || command == "KR" { isWorking = false }
+        // A window change can be two commands; done once both are answered
+        if command != "K?" { isWorking = inFlight.contains { $0 != "K?" } }
 
         switch message {
         case .reading(let reading):
@@ -159,7 +254,7 @@ final class ScaleZero {
             case "flash":
                 notice = "Couldn't save."
             case "range":
-                notice = "That weight is out of range."
+                notice = Self.rangeNotice
             default:
                 notice = "The robot didn't understand a scale command."
             }
@@ -167,6 +262,13 @@ final class ScaleZero {
     }
 
     // MARK: Internals
+
+    private func reset(_ command: String) {
+        guard canControl else { return }
+        notice = nil
+        isWorking = true
+        send(command)
+    }
 
     private func send(_ command: String) {
         inFlight.append(command)
@@ -198,12 +300,18 @@ final class ScaleZero {
 /// and by tests. Mirrors PROTOCOL.md §A.8 (v7).
 struct DemoScaleRobot {
     static let defaultEmptyTray = 121.38
+    static let defaultMaxCup = 450.0
+    static let defaultMinCup = 10.0
     /// Raw scale reading: tray plus whatever is on it
     var gross = 135.2
     /// A job running, drink waiting or tray away: KZ is refused
     var isBusy = false
     private(set) var emptyTray = DemoScaleRobot.defaultEmptyTray
-    private(set) var saved = false
+    private(set) var traySaved = false
+    private(set) var maxCup = DemoScaleRobot.defaultMaxCup
+    private(set) var maxCupSaved = false
+    private(set) var minCup = DemoScaleRobot.defaultMinCup
+    private(set) var minCupSaved = false
 
     mutating func reply(to command: String) -> String {
         switch command {
@@ -212,20 +320,46 @@ struct DemoScaleRobot {
         case "KZ":
             if isBusy { return "KE=busy" }
             emptyTray = gross
-            saved = true
+            traySaved = true
         case "KR":
             emptyTray = Self.defaultEmptyTray
-            saved = false
+            traySaved = false
+        case "KMR":
+            guard ScaleZero.isValidWindow(min: minCup, max: Self.defaultMaxCup) else { return "KE=range" }
+            maxCup = Self.defaultMaxCup
+            maxCupSaved = false
+        case "KNR":
+            guard ScaleZero.isValidWindow(min: Self.defaultMinCup, max: maxCup) else { return "KE=range" }
+            minCup = Self.defaultMinCup
+            minCupSaved = false
         case _ where command.hasPrefix("KT="):
             guard let grams = Double(command.dropFirst(3)) else { return "KE=bad" }
             guard (-20000...20000).contains(grams) else { return "KE=range" }
             emptyTray = grams
-            saved = true
+            traySaved = true
+        case _ where command.hasPrefix("KM="):
+            guard let grams = Double(command.dropFirst(3)) else { return "KE=bad" }
+            guard ScaleZero.isValidWindow(min: minCup, max: grams) else { return "KE=range" }
+            maxCup = grams
+            maxCupSaved = true
+        case _ where command.hasPrefix("KN="):
+            guard let grams = Double(command.dropFirst(3)) else { return "KE=bad" }
+            guard ScaleZero.isValidWindow(min: grams, max: maxCup) else { return "KE=range" }
+            minCup = grams
+            minCupSaved = true
         default:
             return "KE=bad"
         }
-        return "K=" + [gross - emptyTray, emptyTray, Self.defaultEmptyTray]
-            .map { String(format: "%.1f", $0) }
-            .joined(separator: ",") + ",\(saved ? 1 : 0)"
+        let fields = [String(format: "%.1f", gross - emptyTray),
+                      String(format: "%.1f", emptyTray),
+                      String(format: "%.1f", Self.defaultEmptyTray),
+                      traySaved ? "1" : "0",
+                      String(format: "%.1f", maxCup),
+                      String(format: "%.1f", Self.defaultMaxCup),
+                      maxCupSaved ? "1" : "0",
+                      String(format: "%.1f", minCup),
+                      String(format: "%.1f", Self.defaultMinCup),
+                      minCupSaved ? "1" : "0"]
+        return "K=" + fields.joined(separator: ",")
     }
 }

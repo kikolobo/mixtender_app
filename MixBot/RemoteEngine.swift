@@ -16,6 +16,8 @@ class RemoteEngine: ObservableObject {
     @Published var jobProgress = [JobProgress]()
     // Valve calibration session (robot settings); fed by "T" replies
     let valveCalibration: ValveCalibration
+    // Empty-tray weight / scale zero (robot settings); fed by "K" replies
+    let scaleZero: ScaleZero
 
     
     private var cancellables = Set<AnyCancellable>()
@@ -25,6 +27,7 @@ class RemoteEngine: ObservableObject {
     // connection and replay a realistic dispense so the full UI can be tested
     private var demoTask: Task<Void, Never>?
     private var demoValveRobot = DemoValveRobot()
+    private var demoScaleRobot = DemoScaleRobot()
     #endif
 
     init(targetPeripheralUUIDString: String) {
@@ -32,6 +35,7 @@ class RemoteEngine: ObservableObject {
         // CoreBluetooth delivers on the main queue (queue: nil), so the
         // calibration model is only ever touched from the main actor
         self.valveCalibration = MainActor.assumeIsolated { ValveCalibration() }
+        self.scaleZero = MainActor.assumeIsolated { ScaleZero() }
         
         
         bluetoothEngine.objectWillChange
@@ -49,7 +53,10 @@ class RemoteEngine: ObservableObject {
         bluetoothEngine.$isConnected
             .sink { [weak self] isConnected in
                 guard !isConnected, let self else { return }
-                MainActor.assumeIsolated { self.valveCalibration.connectionLost() }
+                MainActor.assumeIsolated {
+                    self.valveCalibration.connectionLost()
+                    self.scaleZero.connectionLost()
+                }
                 self.failUnfinishedSteps()
             }
             .store(in: &cancellables)
@@ -76,6 +83,16 @@ class RemoteEngine: ObservableObject {
                     }
                 }
             }
+            scaleZero.transmit = { [weak self] command in
+                guard let self else { return }
+                // Slight noise, like a real load cell
+                self.demoScaleRobot.gross += Double.random(in: -0.2...0.2)
+                let reply = self.demoScaleRobot.reply(to: command)
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(80))
+                    self?.didReceivedMessage(reply)
+                }
+            }
         }
         bluetoothEngine.simulateConnect()
         robotStatus.isCupReady = true
@@ -84,6 +101,10 @@ class RemoteEngine: ObservableObject {
         MainActor.assumeIsolated {
             valveCalibration.transmit = { [weak self] command in
                 print("[RemoteEngine] Calibration: \(command)")
+                self?.bluetoothEngine.sendStringToPeripheral(command)
+            }
+            scaleZero.transmit = { [weak self] command in
+                print("[RemoteEngine] Scale: \(command)")
                 self?.bluetoothEngine.sendStringToPeripheral(command)
             }
         }
@@ -125,6 +146,11 @@ class RemoteEngine: ObservableObject {
             self.sendJobToRobot(drink)
         }
         #endif
+    }
+
+    /// A job was sent and not every step has finished yet
+    var isPouring: Bool {
+        jobProgress.contains { $0.status != .Complete && $0.status != .Failed }
     }
 
     /// Since protocol v6 the robot stops a running job when the connection
@@ -200,6 +226,11 @@ class RemoteEngine: ObservableObject {
         // parsers below and be logged as invalid
         if let valveMessage = parseValveMessage(message) {
             MainActor.assumeIsolated { valveCalibration.handle(valveMessage) }
+            return
+        }
+
+        if let scaleMessage = parseScaleMessage(message) {
+            MainActor.assumeIsolated { scaleZero.handle(scaleMessage) }
             return
         }
 

@@ -5,9 +5,10 @@
 
 import SwiftUI
 
-// Passcode-protected robot settings. For now this is valve calibration:
-// trimming the open and closed servo angles of the six gravity-valve
-// stations over BLE ("T" messages, see NOTES_FROM_FIRMWARE.md).
+// Passcode-protected robot settings: valve calibration, trimming the open
+// and closed servo angles of the six gravity-valve stations over BLE ("T"
+// messages, see NOTES_FROM_FIRMWARE.md), and scale setup: the empty-tray
+// weight (zero) and the min/max empty-cup weight ("K" messages, PROTOCOL.md §A.8).
 //
 // Safety rules (from the firmware notes, plus app-side extras):
 // - a "place a glass on the tray" prompt before the first tray move / open
@@ -24,6 +25,9 @@ struct RobotSettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var stations: [Station] = loadKnownStations()
+
+    private var scale: ScaleZero { remoteEngine.scaleZero }
+    private var isConnected: Bool { remoteEngine.bluetoothEngine.isConnected }
 
     var body: some View {
         NavigationStack {
@@ -45,6 +49,34 @@ struct RobotSettingsView: View {
                 } footer: {
                     Text("Trim where each gravity valve opens and closes.")
                 }
+
+                // Firmware before v7 has no K commands: hide the action
+                if scale.availability != .unsupported {
+                    Section {
+                        NavigationLink {
+                            ScaleZeroView(scale: scale)
+                        } label: {
+                            HStack {
+                                Label("Scale Setup", systemImage: "scalemass")
+                                Spacer()
+                                if scale.availability == .checking {
+                                    ProgressView()
+                                } else if scale.needsSetup {
+                                    NotSetUpBadge()
+                                } else if let reading = scale.reading {
+                                    Text("Cup \(Int(reading.minCup.rounded()))–\(Int(reading.maxCup.rounded())) g")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .disabled(!isConnected || scale.availability != .available)
+                    } footer: {
+                        Text("Zero the scale and set the lightest and heaviest empty glass. Do this if an empty cup shows “Cup is not empty” or isn't seen.")
+                    }
+                }
+            }
+            .task(id: isConnected) {
+                if isConnected { scale.check() }
             }
             .navigationTitle("Robot Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -65,6 +97,290 @@ struct RobotSettingsView: View {
         .interactiveDismissDisabled()
         .presentationDragIndicator(.hidden)
         .menuEditorSheetSizing()
+    }
+}
+
+// MARK: - Zero scale
+
+/// Guided re-measure of the empty tray (KZ), an optional check with an empty
+/// cup (live K? polling) that can set the cup window from it, the min/max
+/// cup weight editors (KN / KM, resets KNR / KMR), and the empty-tray values
+/// with a reset (KR).
+struct ScaleZeroView: View {
+    let scale: ScaleZero
+
+    @EnvironmentObject var remoteEngine: RemoteEngine
+
+    @State private var showZeroConfirm = false
+    @State private var showResetConfirm = false
+    @State private var isCheckingCup = false
+
+    private var isConnected: Bool { remoteEngine.bluetoothEngine.isConnected }
+    // KZ is also refused during valve calibration, but that session always
+    // ends before this screen can be reached
+    private var canControl: Bool { scale.canControl && isConnected && !remoteEngine.isPouring }
+
+    var body: some View {
+        List {
+            if !isConnected {
+                Section {
+                    Label("The robot isn't connected.", systemImage: "antenna.radiowaves.left.and.right.slash")
+                        .foregroundStyle(.secondary)
+                }
+            } else if remoteEngine.isPouring {
+                Section {
+                    Label("A drink is pouring. Wait until it's done.", systemImage: "hourglass")
+                        .foregroundStyle(.orange)
+                }
+            }
+
+            if let notice = scale.notice {
+                Section {
+                    HStack(alignment: .top) {
+                        Label(notice, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Spacer()
+                        Button {
+                            scale.notice = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Dismiss")
+                    }
+                }
+            }
+
+            Section {
+                Text("Remove the cup and everything else from the tray, then zero the scale.")
+                Button {
+                    showZeroConfirm = true
+                } label: {
+                    HStack {
+                        Label("Zero Scale", systemImage: "scalemass")
+                        if scale.isWorking {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(!canControl)
+            } header: {
+                Text("1. Empty the Tray")
+            } footer: {
+                Text("If a cup is on the tray while zeroing, the robot counts it as part of the tray and will say “Please add a cup” with the cup still on. Zero again with the tray empty to fix it.")
+            }
+
+            if scale.didZero, let reading = scale.reading {
+                Section("2. Result") {
+                    Label("Scale zeroed and saved", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    if !isCheckingCup {
+                        LabeledContent("Reading now", value: grams(reading.absolute))
+                    }
+                }
+
+                Section {
+                    if isCheckingCup {
+                        LabeledContent("Cup weight") {
+                            Text(grams(reading.absolute))
+                                .monospacedDigit()
+                                .contentTransition(.numericText())
+                        }
+                        LabeledContent("Robot says", value: remoteEngine.robotStatus.text ?? "–")
+                        LabeledContent("OK to serve", value: remoteEngine.robotStatus.isCupReady == true ? "Yes" : "No")
+                        // Something is on the tray (the lowest min the robot allows);
+                        // the cup may still be under the current min, which is the point
+                        if reading.absolute >= ScaleZero.cupLimitRange.lowerBound {
+                            let window = ScaleZero.suggestedWindow(forCup: reading.absolute)
+                            Button("Set Cup Window to \(Int(window.min))–\(Int(window.max)) g") {
+                                scale.setCupWindow(min: window.min, max: window.max)
+                            }
+                            .disabled(!canControl)
+                        }
+                        Button("Stop Checking") { isCheckingCup = false }
+                    } else {
+                        Button("Check with an Empty Cup") { isCheckingCup = true }
+                            .disabled(!isConnected)
+                    }
+                } header: {
+                    Text("3. Check (Optional)")
+                } footer: {
+                    Text("Place an empty glass on the tray. Its weight should show here, and the robot should say “Ready!”. You can set the cup window from it: its weight − \(Int(ScaleZero.minCupMargin)) g to + \(Int(ScaleZero.maxCupMargin)) g.")
+                }
+            }
+
+            Section {
+                CupLimitEditor(title: "Min cup",
+                               value: scale.reading?.minCup,
+                               defaultValue: scale.reading?.defaultMinCup,
+                               isSaved: scale.reading?.minCupSaved == true,
+                               canControl: canControl,
+                               resetMessage: "Anything at or below the factory default will count as no cup again.",
+                               onSave: scale.setMinCup,
+                               onReset: scale.resetMinCup)
+                CupLimitEditor(title: "Max cup",
+                               value: scale.reading?.maxCup,
+                               defaultValue: scale.reading?.defaultMaxCup,
+                               isSaved: scale.reading?.maxCupSaved == true,
+                               canControl: canControl,
+                               resetMessage: "The robot will accept empty cups up to the factory default again.",
+                               onSave: scale.setMaxCup,
+                               onReset: scale.resetMaxCup)
+            } header: {
+                Text("Cup Weight Window")
+            } footer: {
+                Text("An empty glass must weigh more than the min and no more than the max. At or below the min the robot says “Please add a cup”; above the max, “Cup is not empty”. Set the min a bit below your lightest glass and the max a bit above your heaviest. 5–2000 g, min at least \(Int(ScaleZero.minCupGap)) g below max.")
+            }
+
+            Section {
+                LabeledContent("Reading now", value: scale.reading.map { grams($0.absolute) } ?? "–")
+                LabeledContent("Empty tray", value: scale.reading.map { grams($0.emptyTray) } ?? "–")
+                LabeledContent("Factory default", value: scale.reading.map { grams($0.defaultEmptyTray) } ?? "–")
+                LabeledContent("Saved on robot") {
+                    if scale.needsSetup {
+                        NotSetUpBadge()
+                    } else {
+                        Text(scale.reading == nil ? "–" : "Yes")
+                    }
+                }
+                Button("Reset to Default", role: .destructive) {
+                    showResetConfirm = true
+                }
+                .disabled(!canControl || scale.reading?.traySaved != true)
+            } header: {
+                Text("Advanced: Empty Tray")
+            } footer: {
+                Text("Reset erases the saved value; the robot goes back to the factory empty-tray weight.")
+            }
+        }
+        .navigationTitle("Scale Setup")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { scale.start() }
+        // Live reading while the screen is open; the firmware asks for at
+        // most 2 K? per second
+        .task(id: isConnected) {
+            guard isConnected else { return }
+            while !Task.isCancelled {
+                scale.refresh()
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        }
+        .onChange(of: isConnected) { _, connected in
+            if !connected { isCheckingCup = false }
+        }
+        .alert("Is the Tray Empty?", isPresented: $showZeroConfirm) {
+            Button("Zero Now") {
+                isCheckingCup = false
+                scale.zero()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Remove the cup and anything else from the tray first. Whatever is on it now becomes the empty tray.")
+        }
+        .alert("Reset Empty Tray?", isPresented: $showResetConfirm) {
+            Button("Reset", role: .destructive) {
+                isCheckingCup = false
+                scale.resetToDefault()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The robot will use the factory empty-tray weight again. An empty cup may show “Cup is not empty” until you zero the scale.")
+        }
+    }
+
+    private func grams(_ value: Double) -> String {
+        String(format: "%.1f g", value)
+    }
+}
+
+/// One end of the cup weight window: the value in use with an editor,
+/// and a reset to the factory value.
+private struct CupLimitEditor: View {
+    let title: String
+    let value: Double?
+    let defaultValue: Double?
+    let isSaved: Bool
+    let canControl: Bool
+    let resetMessage: String
+    let onSave: (Double) -> Void
+    let onReset: () -> Void
+
+    @State private var text = ""
+    @State private var showResetConfirm = false
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        LabeledContent {
+            HStack {
+                TextField("Grams", text: $text)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 90)
+                    .focused($isFocused)
+                    .submitLabel(.done)
+                    .onSubmit(save)
+                Text("g")
+                    .foregroundStyle(.secondary)
+                Button("Save", action: save)
+                    .buttonStyle(.borderless)
+                    .disabled(!canControl || entered == nil || entered == value)
+            }
+        } label: {
+            Text(title)
+            Text(subtitle)
+        }
+        // The editor follows the robot's value unless the user is typing
+        .onChange(of: value, initial: true) { _, value in
+            guard !isFocused, let value else { return }
+            text = formatGrams(value)
+        }
+
+        Button("Reset \(title) to Default", role: .destructive) {
+            showResetConfirm = true
+        }
+        .disabled(!canControl || !isSaved)
+        .alert("Reset \(title) Weight?", isPresented: $showResetConfirm) {
+            Button("Reset", role: .destructive, action: onReset)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(resetMessage)
+        }
+    }
+
+    private var subtitle: String {
+        guard let defaultValue else { return "–" }
+        return "Default \(formatGrams(defaultValue)) g" + (isSaved ? " · Saved" : "")
+    }
+
+    /// The typed weight; accepts a decimal comma too
+    private var entered: Double? {
+        Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
+    }
+
+    private func save() {
+        isFocused = false
+        // Out-of-window values get the firmware's range notice
+        guard let grams = entered else { return }
+        onSave(grams)
+    }
+
+    /// "450" or "452.5": whole grams without a trailing ".0"
+    private func formatGrams(_ value: Double) -> String {
+        value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
+    }
+}
+
+/// The robot has never been zeroed (K reply with saved=0)
+private struct NotSetUpBadge: View {
+    var body: some View {
+        Text("Not set up")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.orange)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(Color.orange.opacity(0.15)))
     }
 }
 
