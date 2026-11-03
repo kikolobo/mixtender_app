@@ -352,21 +352,21 @@ the expected message cadence**: about 10 weight updates per second per step.
 
 ## 7. Firmware checklist
 
-`[x]` = firmware reports it's done (2026-11-02, built but **not yet flashed**). `[~]` = partly done. `[ ]` = not confirmed by the firmware side yet (may already work; please confirm).
+`[x]` = firmware reports it's done (protocol v6, 2026-11-03, built but **not yet flashed**). `[~]` = partly done. `[ ]` = open.
 
-- [ ] Advertise service `94635d24-cf8d-4ff8-9191-de713f39db89` (include it in the advertisement packet, not just the GATT table)
-- [ ] Control characteristic `4ac8a682-9736-4e5d-932b-e9b31405049c`: Write (with response) + Notify
-- [x] Accept writes ≥ 128 bytes (MTU negotiation and/or long writes). Long writes work; MTU ≥ 185 not explicitly requested yet
-- [x] On `ehlo`: reply `$1=<cup>` and a `$0=<status>` line
-- [ ] Push `$1=` on every (debounced) cup change
+- [x] Advertise service `94635d24-cf8d-4ff8-9191-de713f39db89` in the advertisement packet (`addServiceUUID`)
+- [x] Control characteristic `4ac8a682-9736-4e5d-932b-e9b31405049c`: Write (with response) + Notify (also Read). The robot sends on the **Status** characteristic; the app subscribes to both
+- [~] Accept writes ≥ 128 bytes. Long writes work; MTU ≥ 185 not explicitly requested yet
+- [x] On `ehlo`: reply `$1=<ok to serve>` and a `$0=<status>` line
+- [x] Push `$1=` on every change (since v6 `$1` means **OK to serve**, see `PROTOCOL.md` §A.3)
 - [x] Parse `D:` → ordered steps; step index = position in list
 - [x] Per step: `S<n>=P` → `W<n>=…` (cumulative grams for that step) → final `W` → `S<n>=C` or `S<n>=F`
 - [x] Never send `W<n>` after the step's final `S`
-- [~] Every step ends in `C` or `F`, including 0 ml steps (✅) and rejected jobs (✅); mid-pour aborts pending with the safety work
+- [x] Every step ends in `C` or `F`, including 0 ml steps, rejected jobs and mid-job safety aborts (v5)
 - [x] `C!` aborts immediately, all outputs off
-- [~] Safety in firmware: max volume ✅ (450 g), cup-removed abort ⏳, flow timeout / empty bottle ⏳, valve-stuck detection ⏳, abort on BLE disconnect mid-pour ⏳ (the app won't reconnect to the same job)
-- [ ] One message per notification, no terminators (`;` tolerated only on `W`/`S`)
-- [ ] Rate-limit weight notifications (~10 Hz)
+- [~] Safety in firmware: max volume ✅ (450 g), cup-removed abort ✅, flow timeout / empty bottle ✅, pour time limit ✅, scale fault ✅, abort on BLE disconnect mid-pour ✅, **valve stuck open ⏳** (next on the firmware side)
+- [x] One message per notification, no terminators (`;` tolerated only on `W`/`S`)
+- [x] Weight notifications capped at ~10 Hz; the final `W` is always sent before `S=C`
 
 ---
 
@@ -447,6 +447,36 @@ The iOS app is maintained separately. When you want a protocol change:
 
 Newest entry first. The firmware side writes in `NOTES_FROM_FIRMWARE.md`; the
 iOS side replies here.
+
+### 2026-11-03 (v6): app checked against PROTOCOL.md v6
+
+Thanks, all v6 items received. §7 above is updated to your list. **The app is
+compliant with v6 with no protocol change.** Answers and app-side follow-ups:
+
+- **Confirmed: the pour screen doesn't react to `$1=0` mid-pour.** Only the drink
+  screen's SERVE button reads `$1` (`DrinkDetailView.swift`). The pour screen
+  (`ProcessView.swift`) never does. A `$1=0` at job start is harmless.
+- **"Not OK to serve" now shows your reason.** With `$1=0` the drink screen used to
+  say "Please place your cup". It now shows the latest `$0=` text instead (e.g.
+  `Cup is not empty`, `Homing...`, `Calibrating...`), falling back to "Please place
+  your cup" only when no text has arrived. Keep the idle texts short and
+  user-facing; they're shown verbatim in place of the SERVE button.
+- **Stop reasons (your v5 suggestion), done.** When a pour ends with any `S<i>=F`,
+  the pour screen's header becomes the latest `$0=` text (`Bottle empty? Stopped`,
+  `Cup removed! Stopped`, a rejection reason…) instead of a generic "Finished with
+  a hiccup". So please keep sending the reason **after** the `F`s, as you do now.
+  The header updates when it arrives.
+- **Disconnect mid-pour (v6 §A.6).** Your `F`s can't reach a disconnected app, so
+  the app now fails its unfinished steps itself when the link drops and shows
+  "Connection lost. The robot stopped the pour." It doesn't try to resume. On
+  reconnect it sends `ehlo` as always, and your `$1=0` plus state text keep SERVE
+  hidden until the drink is removed.
+- **Cancel:** after sending `C!` the app now discards its local step list, so late
+  `S`/`W` messages from the cancelled job are ignored.
+
+Still on hold on the app side, by the owner's choice: job ack / `ehlo` version
+parsing, and the "reload a valve's saved values without moving it" calibration
+command. **Don't send** `A=…` or new `$` types yet.
 
 ### 2026-11-03 (latest): valve calibration shipped in the app (protocol v3/v4)
 
