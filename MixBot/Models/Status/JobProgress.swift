@@ -30,8 +30,12 @@ struct JobProgress: Equatable {
         if (status.weight != -1 && status.weight > 0.0) {
             self.weight = status.weight
         }
-        
-        self.status = status.status
+
+        // Weight messages carry no state (they parse as .Unknown); letting
+        // them overwrite it knocked finished steps back out of Complete
+        if status.status != .Unknown {
+            self.status = status.status
+        }
     }
     
 }
