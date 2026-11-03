@@ -84,3 +84,31 @@ struct RobotLimitsTests {
         #expect(drinks.first?.pourBlockReason != nil)
     }
 }
+
+@MainActor
+struct DisconnectDuringPourTests {
+    @Test func unfinishedStepsFailWhenTheConnectionDrops() {
+        let engine = RemoteEngine(targetPeripheralUUIDString: "94635d24-cf8d-4ff8-9191-de713f39db89")
+        engine.jobProgress = [JobProgress(step: 0, weight: 75, status: .Complete),
+                              JobProgress(step: 1, weight: 20, status: .Processing),
+                              JobProgress(step: 2, weight: 0, status: .Sent)]
+
+        // The robot stops the job on disconnect (protocol v6), but its
+        // S<i>=F messages can't arrive, so the app finishes the steps itself
+        engine.bluetoothEngine.isConnected = false
+
+        #expect(engine.jobProgress.map(\.status) == [.Complete, .Failed, .Failed])
+        #expect(engine.robotStatus.text == "Connection lost. The robot stopped the pour.")
+    }
+
+    @Test func finishedPourIsLeftAlone() {
+        let engine = RemoteEngine(targetPeripheralUUIDString: "94635d24-cf8d-4ff8-9191-de713f39db89")
+        engine.jobProgress = [JobProgress(step: 0, weight: 50, status: .Complete)]
+        let textBefore = engine.robotStatus.text
+
+        engine.bluetoothEngine.isConnected = false
+
+        #expect(engine.jobProgress.map(\.status) == [.Complete])
+        #expect(engine.robotStatus.text == textBefore)
+    }
+}

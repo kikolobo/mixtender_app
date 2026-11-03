@@ -13,6 +13,12 @@ struct ProcessView: View {
     @State private var isProcessing = true
     
     @Environment(\.dismiss) private var dismiss
+
+    /// The pour is over and at least one step failed (rejected, aborted by
+    /// the robot, or the connection dropped)
+    private var stoppedEarly: Bool {
+        !isProcessing && items.contains { $0.failed }
+    }
     @EnvironmentObject var remoteEngine: RemoteEngine
 
     
@@ -23,12 +29,15 @@ struct ProcessView: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            ServingGlassView(items: items, totalQty: drink.totalQty) { index in
+            ServingGlassView(items: items,
+                             totalQty: drink.totalQty,
+                             stopReason: stoppedEarly ? remoteEngine.robotStatus.text : nil) { index in
                 items[index].completed.toggle()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            Text(remoteEngine.robotStatus.text ?? "--")
+            // Once a pour stops early its reason is the glass's header instead
+            Text(stoppedEarly ? " " : (remoteEngine.robotStatus.text ?? "--"))
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
                 .font(.callout)

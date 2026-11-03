@@ -227,7 +227,11 @@ struct DrinkDetailView: View {
                     }
                     .buttonStyle(.plain)
                 } else {
-                    StatusHint(icon: "cup.and.saucer.fill", text: "Please place your cup")
+                    // Since protocol v6, $1=0 means "not OK to serve" for any
+                    // reason (homing, cup not empty, drink not removed…), and
+                    // the robot's $0 text says which
+                    StatusHint(icon: "cup.and.saucer.fill",
+                               text: remoteEngine.robotStatus.text ?? "Please place your cup")
                 }
             } else {
                 StatusHint(icon: "antenna.radiowaves.left.and.right.slash", text: "Robot not connected")

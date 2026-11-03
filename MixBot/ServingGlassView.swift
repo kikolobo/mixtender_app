@@ -13,6 +13,9 @@ import SwiftUI
 struct ServingGlassView: View {
     let items: [ListItem]
     let totalQty: Int
+    /// Why the pour stopped early (the robot's $0 text), shown as the header
+    /// when a step failed
+    var stopReason: String? = nil
     var onToggle: ((Int) -> Void)? = nil
 
     @State private var celebrationStart: Date?
@@ -101,7 +104,7 @@ struct ServingGlassView: View {
             } else if celebrating {
                 Text("Cheers! 🎉")
             } else if allFinished {
-                Label("Finished with a hiccup", systemImage: "exclamationmark.triangle.fill")
+                Label(stopReason ?? "Finished with a hiccup", systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
             } else {
                 Label("Getting ready…", systemImage: "hourglass")

@@ -50,6 +50,7 @@ class RemoteEngine: ObservableObject {
             .sink { [weak self] isConnected in
                 guard !isConnected, let self else { return }
                 MainActor.assumeIsolated { self.valveCalibration.connectionLost() }
+                self.failUnfinishedSteps()
             }
             .store(in: &cancellables)
 
@@ -126,6 +127,20 @@ class RemoteEngine: ObservableObject {
         #endif
     }
 
+    /// Since protocol v6 the robot stops a running job when the connection
+    /// drops, but its S<i>=F messages can't reach us any more. Fail the
+    /// unfinished steps locally so the pour screen reaches Done and says why.
+    private func failUnfinishedSteps() {
+        let unfinished = jobProgress.indices.filter {
+            jobProgress[$0].status != .Complete && jobProgress[$0].status != .Failed
+        }
+        guard !unfinished.isEmpty else { return }
+        for index in unfinished {
+            jobProgress[index].status = .Failed
+        }
+        robotStatus.text = "Connection lost. The robot stopped the pour."
+    }
+
     func cancelDispense() {
         #if targetEnvironment(simulator)
         demoTask?.cancel()
@@ -136,6 +151,8 @@ class RemoteEngine: ObservableObject {
             bluetoothEngine.sendStringToPeripheral("C!")
         }
         #endif
+        // The pour screen is gone; a later disconnect mustn't "fail" this job
+        jobProgress.removeAll()
     }
 
     #if targetEnvironment(simulator)
