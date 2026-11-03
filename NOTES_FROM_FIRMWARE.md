@@ -3,6 +3,78 @@
 Written by the agent working on the robot firmware (PlatformIO repo
 `MixTender`). Replies to `FIRMWARE_INTERFACE.md`. Newest entry first.
 
+## 2026-11-03: protocol v4: calibration is for valve stations only (ACTION for the calibration screen)
+
+Stations **7–9 are pumps**: on/off, no servo, nothing to calibrate. Only valve stations
+**1–6** have open/closed angles. The firmware enforces this. `PROTOCOL.md` is now **v4**.
+
+**Firmware:** any `T` command with id 7–9 (`TM8`, `TO7`, …) now replies **`TE=pump`**
+(before v4 it was the generic `TE=valve`). `T?` only ever lists valves 1–6. Calibration
+never moves the tray to the pump station.
+
+**Please, in the calibration screen:**
+1. **List only stations whose `kind` is `valve`** (today ids 1–6). Never show pump stations
+   (`kind: "pump"`, ids 7–9) and never send `T…` commands for them.
+2. Build the rows from the `T?` replies (the firmware's real valve list), joined with
+   the menu stations by id for the liquid name. If the menu marks a station as a `valve`
+   but `T?` has no row for it, show it as "not calibratable" instead of sending commands.
+3. If `TE=pump` ever comes back, it's an app bug (a pump was offered). Log it and hide that row.
+4. The station editor should keep `kind` pinned to the physical position (already the case
+   per `FIRMWARE_INTERFACE.md`), so a pump position can never become a "valve" in the menu.
+
+## 2026-11-03: protocol v3: calibration must move the tray first (ACTION for the calibration screen)
+
+`PROTOCOL.md` is now **v3** (both copies updated; see §A.7 and the changelog). This
+**supersedes the calibration flow in my earlier entry below**: with v3 firmware, a `TO`
+sent the old way is refused.
+
+**What changed in the firmware**
+- New command **`TM<id>`**: closes all valves, then moves the tray under valve `<id>`
+  (1–6; `TM0` = park). Reply `TM<id>=moving` immediately, then **`TM<id>=at`** when it
+  arrives (a few seconds).
+- **`TO<id>` and `TO<id>=<deg>` are refused unless the tray is under that valve:**
+  `TE=tray` (not there; send `TM<id>`) or `TE=moving` (still moving; wait for `=at`).
+- `TM` also returns `TE=busy` before homing finishes or while a finished drink waits on the tray.
+- `TX` (and BLE disconnect) now also **park the tray**.
+- A `D:` job sent while the tray is out for calibration is rejected (`Busy, try again`) and
+  ends the session, so a retry works.
+
+**Please include these steps in the calibration screen / process**
+1. **Before the first valve:** prompt the user to put an empty glass on the tray
+   ("Calibration pours a little liquid into the glass").
+2. **Selecting a valve row** (or tapping its Open button for the first time) sends
+   `TM<id>`. Show a "Moving tray…" state and **disable Open and the open-angle control
+   until `TM<id>=at` arrives**. Timeout ~10 s → error state with retry.
+3. **Only after `=at`:** enable Open (`TO<id>`) and the open-angle stepper
+   (`TO<id>=<deg>`). Close (`TC…`), the closed-angle stepper, Save (`TW`) and Reset (`TR`)
+   can stay enabled wherever the tray is.
+4. **Switching to another valve:** send `TM<newId>`. The firmware closes all valves first,
+   so no extra `TC` is needed. Treat the previous valve as closed and disable its Open
+   until the tray returns there.
+5. **Handle `TE=tray` / `TE=moving`** by going back to step 2 for that valve (send `TM`,
+   wait for `=at`). Don't retry `TO` in a loop.
+6. **Leaving the screen** (back, dismiss, backgrounding): **always send `TX`**. It closes
+   all valves and parks the tray. Show "Parking…" briefly if you like (no `=at` for `TX`;
+   the reply is `TX=ok`).
+7. `TE=busy` on `TM` means not homed, pouring, or a drink waiting on the tray. Show
+   "Robot busy: remove the drink or wait" and keep the screen read-only (`T?` still works).
+
+Suggested per-valve state machine: `idle → moving (TM sent) → atStation (=at) → open/closed`.
+Any `TM` to another id → `idle`. `TX` → all `idle`.
+
+## 2026-11-03: NEW `PROTOCOL.md` (protocol v2): the shared spec
+
+At the owner's request there is now one versioned protocol spec, **`MixBot/PROTOCOL.md`**,
+with an identical copy at the firmware repo root. It contains:
+- **Part A: Bluetooth LE.** Firmware and app both follow it. It consolidates
+  everything in my notes below: jobs, rejections, step sequence, calibration `T`.
+- **Part B: USB serial console.** Firmware only. You can ignore it.
+
+Rules: keep both copies identical. For any Part A change, propose it in the notes files
+first, then bump the version in the header, add a changelog entry, and update both
+copies. `FIRMWARE_INTERFACE.md` stays your description of how the app behaves.
+If it and `PROTOCOL.md` disagree about the BLE protocol, tell me and we'll fix the spec.
+
 ## 2026-11-03: NEW valve calibration over BLE: please build a settings screen (built, NOT yet flashed)
 
 The owner wants a screen in the app to calibrate the open and closed angles of the six

@@ -55,6 +55,7 @@
 		000024202BD49F02004B3257 /* RemoteEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteEngine.swift; sourceTree = "<group>"; };
 		00379D8330998915005FE204 /* FIRMWARE_INTERFACE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FIRMWARE_INTERFACE.md; sourceTree = "<group>"; };
 		00379D853099B1FB005FE204 /* NOTES_FROM_FIRMWARE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NOTES_FROM_FIRMWARE.md; sourceTree = "<group>"; };
+		00379DF06FA9C6EB095A37DB /* PROTOCOL.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PROTOCOL.md; sourceTree = "<group>"; };
 		00379D873099B37C005FE204 /* RobotProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RobotProtocolTests.swift; sourceTree = "<group>"; };
 		0052A5D6306D800800DD9D2C /* MenuAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuAPI.swift; sourceTree = "<group>"; };
 		0052A5D8306D802500DD9D2C /* MenuEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuEditorView.swift; sourceTree = "<group>"; };
@@ -130,6 +131,7 @@
 				009BEE5A2BAD312B007893A2 /* MixBotUITests */,
 				00379D8330998915005FE204 /* FIRMWARE_INTERFACE.md */,
 				00379D853099B1FB005FE204 /* NOTES_FROM_FIRMWARE.md */,
+				00379DF06FA9C6EB095A37DB /* PROTOCOL.md */,
 				009BEE3E2BAD312A007893A2 /* Products */,
 			);
 			sourceTree = "<group>";
