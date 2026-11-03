@@ -8,8 +8,10 @@ struct DrinkMenuView: View {
     @State private var selectedDrink: Drink?
     @State private var showAITender = false
     @State private var showMenuEditor = false
-    @State private var showPasscodePrompt = false
-    @State private var passcodeAccepted = false
+    @State private var showRobotSettings = false
+    // Which protected area the passcode prompt unlocks
+    @State private var passcodeTarget: ProtectedArea?
+    @State private var unlockedTarget: ProtectedArea?
     @Namespace private var zoomNamespace
 
     // Accent colors cycled through the drink cards
@@ -67,13 +69,19 @@ struct DrinkMenuView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Choose a Drink")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItemGroup(placement: .navigationBarLeading) {
                     Button(action: {
-                        showPasscodePrompt = true
+                        passcodeTarget = .menuEditor
                     }) {
                         Image(systemName: "square.and.pencil").foregroundColor(.primary)
                     }
                     .accessibilityLabel("Edit Menu")
+                    Button(action: {
+                        passcodeTarget = .robotSettings
+                    }) {
+                        Image(systemName: "gearshape").foregroundColor(.primary)
+                    }
+                    .accessibilityLabel("Robot Settings")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
@@ -97,16 +105,21 @@ struct DrinkMenuView: View {
                     self.drinks = savedDrinks
                 }
             }
-            // Open the editor from onDismiss, not from the success callback:
+            .sheet(isPresented: $showRobotSettings) {
+                RobotSettingsView()
+            }
+            // Open the destination from onDismiss, not from the success callback:
             // presenting one sheet while another is mid-dismissal gets dropped
-            .sheet(isPresented: $showPasscodePrompt, onDismiss: {
-                if passcodeAccepted {
-                    passcodeAccepted = false
-                    showMenuEditor = true
+            .sheet(item: $passcodeTarget, onDismiss: {
+                guard let target = unlockedTarget else { return }
+                unlockedTarget = nil
+                switch target {
+                case .menuEditor: showMenuEditor = true
+                case .robotSettings: showRobotSettings = true
                 }
-            }) {
-                PasscodeSheet {
-                    passcodeAccepted = true
+            }) { target in
+                PasscodeSheet(title: target.passcodeTitle) {
+                    unlockedTarget = target
                 }
             }
         }
@@ -192,7 +205,23 @@ private struct DrinkSheetSizing: PresentationSizing {
 
 // 4-digit numeric keypad gating the menu editor, in the app's visual
 // language. Wrong codes shake and clear; the right code unlocks immediately.
+/// Areas behind the editor passcode (the same code for now)
+enum ProtectedArea: String, Identifiable {
+    case menuEditor
+    case robotSettings
+
+    var id: String { rawValue }
+
+    var passcodeTitle: String {
+        switch self {
+        case .menuEditor: return "Editor Passcode"
+        case .robotSettings: return "Robot Settings"
+        }
+    }
+}
+
 struct PasscodeSheet: View {
+    var title = "Editor Passcode"
     let onUnlock: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -236,7 +265,7 @@ struct PasscodeSheet: View {
             .frame(width: 56, height: 56)
 
             VStack(spacing: 4) {
-                Text("Editor Passcode")
+                Text(title)
                     .font(.title3.bold())
                 Text("Enter the 4-digit code")
                     .font(.subheadline)

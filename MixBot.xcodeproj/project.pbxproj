@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		000024212BD49F02004B3257 /* RemoteEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000024202BD49F02004B3257 /* RemoteEngine.swift */; };
 		00379D883099B37C005FE204 /* RobotProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00379D873099B37C005FE204 /* RobotProtocolTests.swift */; };
+		00379D8A3099B716005FE204 /* ValveCalibration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00379D893099B716005FE204 /* ValveCalibration.swift */; };
+		00379D8C3099B761005FE204 /* RobotSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00379D8B3099B761005FE204 /* RobotSettingsView.swift */; };
+		00379D8E3099B784005FE204 /* ValveCalibrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00379D8D3099B784005FE204 /* ValveCalibrationTests.swift */; };
 		0052A5D5306D7F6100DD9D2C /* DrinkDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE6C2BAD3312007893A2 /* DrinkDetailView.swift */; };
 		0052A5D7306D800800DD9D2C /* MenuAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0052A5D6306D800800DD9D2C /* MenuAPI.swift */; };
 		0052A5D9306D802500DD9D2C /* MenuEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0052A5D8306D802500DD9D2C /* MenuEditorView.swift */; };
@@ -57,6 +60,9 @@
 		00379D853099B1FB005FE204 /* NOTES_FROM_FIRMWARE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NOTES_FROM_FIRMWARE.md; sourceTree = "<group>"; };
 		00379DF06FA9C6EB095A37DB /* PROTOCOL.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PROTOCOL.md; sourceTree = "<group>"; };
 		00379D873099B37C005FE204 /* RobotProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RobotProtocolTests.swift; sourceTree = "<group>"; };
+		00379D893099B716005FE204 /* ValveCalibration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValveCalibration.swift; sourceTree = "<group>"; };
+		00379D8B3099B761005FE204 /* RobotSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RobotSettingsView.swift; sourceTree = "<group>"; };
+		00379D8D3099B784005FE204 /* ValveCalibrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValveCalibrationTests.swift; sourceTree = "<group>"; };
 		0052A5D6306D800800DD9D2C /* MenuAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuAPI.swift; sourceTree = "<group>"; };
 		0052A5D8306D802500DD9D2C /* MenuEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuEditorView.swift; sourceTree = "<group>"; };
 		0052A5DA306D804200DD9D2C /* DrinkEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkEditorView.swift; sourceTree = "<group>"; };
@@ -164,6 +170,7 @@
 				0052A5D8306D802500DD9D2C /* MenuEditorView.swift */,
 				0052A5DA306D804200DD9D2C /* DrinkEditorView.swift */,
 				0052A5DC306D91DB00DD9D2C /* AITenderView.swift */,
+				00379D8B3099B761005FE204 /* RobotSettingsView.swift */,
 			);
 			path = MixBot;
 			sourceTree = "<group>";
@@ -181,6 +188,7 @@
 			children = (
 				009BEE512BAD312B007893A2 /* MixBotTests.swift */,
 				00379D873099B37C005FE204 /* RobotProtocolTests.swift */,
+				00379D8D3099B784005FE204 /* ValveCalibrationTests.swift */,
 			);
 			path = MixBotTests;
 			sourceTree = "<group>";
@@ -199,6 +207,7 @@
 			children = (
 				00E585242BDAC80500B5F238 /* JobProgress.swift */,
 				00D24AD42C0D2F0200FB8876 /* RobotStatus.swift */,
+				00379D893099B716005FE204 /* ValveCalibration.swift */,
 			);
 			path = Status;
 			sourceTree = "<group>";
@@ -349,6 +358,7 @@
 				0052A5D7306D800800DD9D2C /* MenuAPI.swift in Sources */,
 				0052A5D5306D7F6100DD9D2C /* DrinkDetailView.swift in Sources */,
 				0052A5D9306D802500DD9D2C /* MenuEditorView.swift in Sources */,
+				00379D8A3099B716005FE204 /* ValveCalibration.swift in Sources */,
 				008434B82BB026FF00C90D77 /* Ingredient.swift in Sources */,
 				00B9368A30357D6A00CE889E /* ServingGlassView.swift in Sources */,
 				008434BB2BB027C600C90D77 /* BLEEngine.swift in Sources */,
@@ -357,6 +367,7 @@
 				008434B42BB01A7800C90D77 /* ProcessView.swift in Sources */,
 				0052A5DB306D804200DD9D2C /* DrinkEditorView.swift in Sources */,
 				0052A5DD306D91DB00DD9D2C /* AITenderView.swift in Sources */,
+				00379D8C3099B761005FE204 /* RobotSettingsView.swift in Sources */,
 				00AA1813302C4DC600CC0CBB /* BubblesBackground.swift in Sources */,
 				008434B62BB026ED00C90D77 /* Drink.swift in Sources */,
 				009BEE412BAD312A007893A2 /* MixBotApp.swift in Sources */,
@@ -369,6 +380,7 @@
 			files = (
 				00379D883099B37C005FE204 /* RobotProtocolTests.swift in Sources */,
 				009BEE522BAD312B007893A2 /* MixBotTests.swift in Sources */,
+				00379D8E3099B784005FE204 /* ValveCalibrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -87,6 +87,22 @@ func saveDataToCache(data: Data) {
 }
 
 
+/// Station definitions from the last good menu (cached copy, then the
+/// bundled one), for screens that need station names without a network trip.
+func loadKnownStations() -> [Station] {
+    let cacheURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+        .appendingPathComponent(cachedMenuFileName)
+    let bundleURL = Bundle.main.url(forResource: "drinks", withExtension: "json")
+
+    for url in [cacheURL, bundleURL].compactMap({ $0 }) {
+        if let data = try? Data(contentsOf: url),
+           let menu = try? JSONDecoder().decode(DrinkMenu.self, from: data) {
+            return menu.stations
+        }
+    }
+    return []
+}
+
 func getDrinksCachedFile() -> [Drink]? {
     let fileManager = FileManager.default
     guard let cacheDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else {

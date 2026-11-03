@@ -14,6 +14,8 @@ class RemoteEngine: ObservableObject {
     let bluetoothEngine: BluetoothEngine
     @Published var robotStatus: RobotStatus = RobotStatus()
     @Published var jobProgress = [JobProgress]()
+    // Valve calibration session (robot settings); fed by "T" replies
+    let valveCalibration: ValveCalibration
 
     
     private var cancellables = Set<AnyCancellable>()
@@ -22,10 +24,14 @@ class RemoteEngine: ObservableObject {
     // Demo mode: CoreBluetooth doesn't work in the simulator, so we fake the
     // connection and replay a realistic dispense so the full UI can be tested
     private var demoTask: Task<Void, Never>?
+    private var demoValveRobot = DemoValveRobot()
     #endif
 
     init(targetPeripheralUUIDString: String) {
         self.bluetoothEngine = BluetoothEngine(targetPeripheralUUIDString: targetPeripheralUUIDString)
+        // CoreBluetooth delivers on the main queue (queue: nil), so the
+        // calibration model is only ever touched from the main actor
+        self.valveCalibration = MainActor.assumeIsolated { ValveCalibration() }
         
         
         bluetoothEngine.objectWillChange
@@ -40,6 +46,13 @@ class RemoteEngine: ObservableObject {
                    }
                    .store(in: &cancellables)
         
+        bluetoothEngine.$isConnected
+            .sink { [weak self] isConnected in
+                guard !isConnected, let self else { return }
+                MainActor.assumeIsolated { self.valveCalibration.connectionLost() }
+            }
+            .store(in: &cancellables)
+
         bluetoothEngine.$txReady
             .sink { [weak self] txReady in
                 guard txReady else { return }
@@ -49,9 +62,30 @@ class RemoteEngine: ObservableObject {
             .store(in: &cancellables)
 
         #if targetEnvironment(simulator)
+        // Calibration commands are answered by a local stand-in for the firmware
+        MainActor.assumeIsolated {
+            valveCalibration.transmit = { [weak self] command in
+                guard let self else { return }
+                let replies = self.demoValveRobot.reply(to: command)
+                Task { @MainActor [weak self] in
+                    for reply in replies {
+                        // A tray move takes a moment, like the real robot
+                        try? await Task.sleep(for: reply.hasSuffix("=at") ? .milliseconds(1800) : .milliseconds(60))
+                        self?.didReceivedMessage(reply)
+                    }
+                }
+            }
+        }
         bluetoothEngine.simulateConnect()
         robotStatus.isCupReady = true
         robotStatus.text = "Demo mode: simulated robot"
+        #else
+        MainActor.assumeIsolated {
+            valveCalibration.transmit = { [weak self] command in
+                print("[RemoteEngine] Calibration: \(command)")
+                self?.bluetoothEngine.sendStringToPeripheral(command)
+            }
+        }
         #endif
     }
 
@@ -145,6 +179,13 @@ class RemoteEngine: ObservableObject {
             return
         }
         
+        // Calibration replies first: they'd otherwise fall through both
+        // parsers below and be logged as invalid
+        if let valveMessage = parseValveMessage(message) {
+            MainActor.assumeIsolated { valveCalibration.handle(valveMessage) }
+            return
+        }
+
         if let newUpdate = makeStatusFrom(message: message) {
             guard jobProgress.indices.contains(newUpdate.step) else {
                 print("[RemoteEngine] Ignoring progress for out-of-range step \(newUpdate.step)")
