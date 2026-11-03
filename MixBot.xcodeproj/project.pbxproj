@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		000024212BD49F02004B3257 /* RemoteEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000024202BD49F02004B3257 /* RemoteEngine.swift */; };
+		00379D883099B37C005FE204 /* RobotProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00379D873099B37C005FE204 /* RobotProtocolTests.swift */; };
 		0052A5D5306D7F6100DD9D2C /* DrinkDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009BEE6C2BAD3312007893A2 /* DrinkDetailView.swift */; };
 		0052A5D7306D800800DD9D2C /* MenuAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0052A5D6306D800800DD9D2C /* MenuAPI.swift */; };
 		0052A5D9306D802500DD9D2C /* MenuEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0052A5D8306D802500DD9D2C /* MenuEditorView.swift */; };
@@ -54,6 +55,7 @@
 		000024202BD49F02004B3257 /* RemoteEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteEngine.swift; sourceTree = "<group>"; };
 		00379D8330998915005FE204 /* FIRMWARE_INTERFACE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FIRMWARE_INTERFACE.md; sourceTree = "<group>"; };
 		00379D853099B1FB005FE204 /* NOTES_FROM_FIRMWARE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = NOTES_FROM_FIRMWARE.md; sourceTree = "<group>"; };
+		00379D873099B37C005FE204 /* RobotProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RobotProtocolTests.swift; sourceTree = "<group>"; };
 		0052A5D6306D800800DD9D2C /* MenuAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuAPI.swift; sourceTree = "<group>"; };
 		0052A5D8306D802500DD9D2C /* MenuEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuEditorView.swift; sourceTree = "<group>"; };
 		0052A5DA306D804200DD9D2C /* DrinkEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrinkEditorView.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 			isa = PBXGroup;
 			children = (
 				009BEE512BAD312B007893A2 /* MixBotTests.swift */,
+				00379D873099B37C005FE204 /* RobotProtocolTests.swift */,
 			);
 			path = MixBotTests;
 			sourceTree = "<group>";
@@ -362,6 +365,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				00379D883099B37C005FE204 /* RobotProtocolTests.swift in Sources */,
 				009BEE522BAD312B007893A2 /* MixBotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

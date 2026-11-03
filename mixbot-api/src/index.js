@@ -90,6 +90,12 @@ async function putMenu(request, env) {
     return json({ ok: true, updatedAt });
 }
 
+// The robot firmware's physical limits (FIRMWARE_INTERFACE.md §3.3); it
+// rejects any job outside them. Mirrors RobotLimits in the app's DrinkMenu.swift.
+const MAX_POUR_QTY = 450; // ml, glass capacity
+const MIN_STATION_ID = 1;
+const MAX_STATION_ID = 9;
+
 // Mirrors the app's DrinkMenu.resolvedDrinks() rules so a bad file can
 // never be published. Returns every problem found, not just the first,
 // so an editor can show them all at once.
@@ -111,6 +117,9 @@ function validateMenu(menu) {
             if (!Number.isInteger(station?.id)) {
                 problems.push(`Station id must be an integer (got ${JSON.stringify(station?.id)})`);
                 continue;
+            }
+            if (station.id < MIN_STATION_ID || station.id > MAX_STATION_ID) {
+                problems.push(`Station ${station.id} doesn't exist on the robot (valid: ${MIN_STATION_ID}–${MAX_STATION_ID})`);
             }
             if (stationIds.has(station.id)) {
                 problems.push(`Duplicate station id ${station.id}`);
@@ -145,6 +154,8 @@ function validateMenu(menu) {
         }
         if (!Number.isInteger(drink?.totalQty) || drink.totalQty <= 0) {
             problems.push(`${where}: totalQty must be a positive integer (ml)`);
+        } else if (drink.totalQty > MAX_POUR_QTY) {
+            problems.push(`${where}: totalQty is over the glass capacity of ${MAX_POUR_QTY} ml`);
         }
 
         if (!Array.isArray(drink?.ingredients) || drink.ingredients.length === 0) {

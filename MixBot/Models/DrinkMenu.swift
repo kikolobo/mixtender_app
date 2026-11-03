@@ -128,6 +128,15 @@ struct MenuIngredient: Codable, Identifiable, Equatable {
     }
 }
 
+// The robot firmware's physical limits (FIRMWARE_INTERFACE.md §3.3); it
+// rejects any job outside them. Mirrored in mixbot-api's validateMenu.
+enum RobotLimits {
+    /// Glass capacity in ml (the firmware caps a job at 450 g)
+    static let maxPourQty = 450
+    /// Station ids the firmware has dispensers for
+    static let stationIds = 1...9
+}
+
 extension DrinkMenu {
     // Hand-edited files may carry small rounding noise in percent sums
     static let percentTolerance = 0.5
@@ -191,6 +200,23 @@ extension DrinkMenu {
             if abs(percentSum - 100) > Self.percentTolerance {
                 problems.append("'\(drink.name)': percents sum to \(Int(percentSum.rounded())), expected 100")
             }
+        }
+
+        return problems
+    }
+
+    /// Recipes the robot would refuse to pour. Checked only before publishing
+    /// (editor and server), never when loading: a menu that slipped past
+    /// should still load, with just those drinks blocked from serving,
+    /// instead of the whole menu falling back to a cached copy.
+    func robotLimitProblems() -> [String] {
+        var problems: [String] = []
+
+        for station in stations where !RobotLimits.stationIds.contains(station.id) {
+            problems.append("Station \(station.id) doesn't exist on the robot (valid: \(RobotLimits.stationIds.lowerBound)–\(RobotLimits.stationIds.upperBound))")
+        }
+        for drink in drinks where drink.totalQty > RobotLimits.maxPourQty {
+            problems.append("'\(drink.name)': total quantity is over the glass capacity of \(RobotLimits.maxPourQty) ml")
         }
 
         return problems

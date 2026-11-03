@@ -204,7 +204,10 @@ struct DrinkDetailView: View {
     @ViewBuilder
     private var bottomActionBar: some View {
         VStack(spacing: 0) {
-            if remoteEngine.bluetoothEngine.isConnected {
+            if let reason = drink.pourBlockReason {
+                // The robot would reject this recipe, so don't offer to pour it
+                StatusHint(icon: "exclamationmark.triangle.fill", text: reason)
+            } else if remoteEngine.bluetoothEngine.isConnected {
                 if remoteEngine.robotStatus.isCupReady == true {
                     Button(action: {
                         self.showChecklist = true // Trigger navigation

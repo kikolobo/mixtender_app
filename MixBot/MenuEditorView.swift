@@ -236,7 +236,7 @@ struct MenuEditorView: View {
 
         // Catch problems locally before a round-trip; the server enforces the
         // same rules regardless
-        let problems = menu.validationProblems()
+        let problems = menu.validationProblems() + menu.robotLimitProblems()
         guard problems.isEmpty else {
             alertMessage = "Please fix:\n• " + problems.joined(separator: "\n• ")
             return

@@ -18,7 +18,7 @@ struct DrinkEditorView: View {
 
     var body: some View {
         Form {
-            Section("Drink") {
+            Section {
                 TextField("Name", text: $drink.name)
                 TextField("Description", text: $drink.description, axis: .vertical)
                 TextField("Author (optional)", text: authorBinding)
@@ -31,6 +31,14 @@ struct DrinkEditorView: View {
                         .frame(width: 80)
                     Text("ml")
                         .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Drink")
+            } footer: {
+                // The robot rejects anything over the glass capacity
+                if drink.totalQty > RobotLimits.maxPourQty {
+                    Text("The glass holds at most \(RobotLimits.maxPourQty) ml.")
+                        .foregroundStyle(.red)
                 }
             }
 
